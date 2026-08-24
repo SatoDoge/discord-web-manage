@@ -1,0 +1,23 @@
+{
+  "name": "discord-web-manage",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Discord bot web management — monorepo root",
+  "workspaces": [
+    "frontend",
+    "serverend"
+  ],
+  "scripts": {
+    "dev": "concurrently -k -n server,web -c cyan,magenta \"npm run dev -w serverend\" \"npm run dev -w frontend\"",
+    "dev:frontend": "npm run dev -w frontend",
+    "dev:server": "npm run dev -w serverend",
+    "build": "npm run build -w serverend && npm run build -w frontend",
+    "lint": "npm run lint -w frontend"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
