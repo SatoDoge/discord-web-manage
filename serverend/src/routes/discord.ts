@@ -6,6 +6,7 @@ import {
   fetchGlobalUserProfile,
   fetchGuildMemberProfile,
 } from '#server/services/discord/getMemberProfileService.js';
+import { fetchOnlineMemberList } from '#server/services/discord/getOnlineMember.js';
 import {
   applyPresenceUpdate,
   type PresenceUpdateInput,
@@ -73,6 +74,9 @@ discord.get('/users/:userId', async (c) => {
 
   return c.json(result.data);
 });
+
+/** Guild members currently online (online, idle, or dnd) from the local member store. */
+discord.get('/members/online', async (c) => c.json(await fetchOnlineMemberList()));
 
 /** Member profile in the current guild (`DISCORD_GUILD_ID`). */
 discord.get('/members/:userId', async (c) => {
