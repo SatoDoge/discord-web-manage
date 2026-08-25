@@ -17,7 +17,7 @@ const discord = new Hono<{ Variables: AuthVariables }>();
 discord.use('*', requireAuth);
 
 /** Current Discord bot connection status, profile, and activities. */
-discord.get('/status', (c) => c.json(fetchClientStatus()));
+discord.get('/status', async (c) => c.json(await fetchClientStatus()));
 
 /** Update Discord bot presence status and/or activity. */
 discord.put('/presence', async (c) => {
@@ -37,7 +37,7 @@ discord.put('/presence', async (c) => {
 
   return c.json({
     ok: true,
-    status: fetchClientStatus(),
+    status: await fetchClientStatus(),
   });
 });
 

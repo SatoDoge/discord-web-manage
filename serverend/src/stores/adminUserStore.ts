@@ -21,6 +21,7 @@ async function readFromDisk(): Promise<AdminUserList> {
     return JSON.parse(trimmed) as AdminUserList;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      await writeToDisk([]);
       return [];
     }
     throw error;
