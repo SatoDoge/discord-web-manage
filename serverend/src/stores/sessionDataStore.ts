@@ -21,6 +21,7 @@ async function readFromDisk(): Promise<SessionDataList> {
     return JSON.parse(trimmed) as SessionDataList;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      await writeToDisk([]);
       return [];
     }
     throw error;
