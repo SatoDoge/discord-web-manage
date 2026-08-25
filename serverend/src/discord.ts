@@ -4,6 +4,7 @@ import { onGuildMemberUpdate } from "#server/discord/event/onGuildMemberUpdate.j
 import { onGuildMemberAdd } from "#server/discord/event/onGuildMemberAdd.js";
 import { onGuildMemberRemove } from "#server/discord/event/onGuildMemberRemove.js";
 import { onPresenceUpdate } from "#server/discord/event/onPresenceUpdate.js";
+import { initMemberDB } from "#server/discord/initMemberDB.js";
 const logger = new Logger("discord");
 let client: Client | null = null;
 
@@ -24,7 +25,7 @@ export function createDiscordClient() {
         ],
     });
 
-    client.once(Events.ClientReady, (readyClient) => {
+    client.once(Events.ClientReady, async (readyClient) => {
         logger.info(`Logged in as ${readyClient.user.tag}`);
 
         /* イベント登録 */
@@ -32,6 +33,7 @@ export function createDiscordClient() {
         onGuildMemberAdd();
         onGuildMemberRemove();
         onPresenceUpdate();
+        await initMemberDB();
     });
 
     client.login(token);
