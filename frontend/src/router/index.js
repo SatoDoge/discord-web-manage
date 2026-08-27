@@ -27,6 +27,11 @@ const router = createRouter({
                     path: '/manage/users',
                     name: 'userList',
                     component: () => import('@/views/pages/manage/UserList.vue')
+                },
+                {
+                    path: '/manage/messages',
+                    name: 'messageList',
+                    component: () => import('@/views/pages/manage/MessageList.vue')
                 }
             ]
         },

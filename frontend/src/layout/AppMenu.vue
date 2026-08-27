@@ -35,6 +35,11 @@ const model = ref([
                 label: 'Users',
                 icon: 'pi pi-fw pi-users',
                 to: '/manage/users'
+            },
+            {
+                label: 'Messages',
+                icon: 'pi pi-fw pi-comments',
+                to: '/manage/messages'
             }
         ]
     }
