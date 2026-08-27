@@ -22,6 +22,11 @@ const router = createRouter({
                     path: '/bot/activity',
                     name: 'botActivity',
                     component: () => import('@/views/pages/bot/Activity.vue')
+                },
+                {
+                    path: '/manage/users',
+                    name: 'userList',
+                    component: () => import('@/views/pages/manage/UserList.vue')
                 }
             ]
         },

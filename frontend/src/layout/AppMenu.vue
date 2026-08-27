@@ -27,6 +27,16 @@ const model = ref([
                 to: '/bot/activity'
             }
         ]
+    },
+    {
+        label: 'Manage',
+        items: [
+            {
+                label: 'Users',
+                icon: 'pi pi-fw pi-users',
+                to: '/manage/users'
+            }
+        ]
     }
 ]);
 </script>
