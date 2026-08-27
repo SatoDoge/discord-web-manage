@@ -5,6 +5,7 @@ import {
   banMembers,
   isValidDeleteMessageSeconds,
 } from '#server/services/discord/banMemberService.js';
+import { deleteMessage } from '#server/services/discord/deleteMessageService.js';
 import { fetchClientStatus } from '#server/services/discord/getClientStatusService.js';
 import { fetchMemberList } from '#server/services/discord/getMemberListService.js';
 import {
@@ -190,6 +191,30 @@ discord.post('/messages/search', async (c) => {
   }
 
   return c.json(result.data);
+});
+
+/** Delete a guild message by channel and message IDs. */
+discord.post('/messages/delete', async (c) => {
+  let body: {
+    channelId?: unknown;
+    messageId?: unknown;
+    reason?: unknown;
+  };
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: 'invalid_body' }, 400);
+  }
+
+  const result = await deleteMessage(body.channelId, body.messageId, body.reason);
+  if (!result.ok) {
+    return c.json(
+      { error: result.error },
+      result.status as ContentfulStatusCode,
+    );
+  }
+
+  return c.json({ ok: true });
 });
 
 export default discord;
