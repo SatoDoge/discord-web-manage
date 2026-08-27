@@ -6,6 +6,7 @@ import {
   isValidDeleteMessageSeconds,
 } from '#server/services/discord/banMemberService.js';
 import { deleteMessage } from '#server/services/discord/deleteMessageService.js';
+import { fetchChannelList } from '#server/services/discord/getChannelListService.js';
 import { fetchClientStatus } from '#server/services/discord/getClientStatusService.js';
 import { fetchMemberList } from '#server/services/discord/getMemberListService.js';
 import {
@@ -89,6 +90,18 @@ discord.get('/users/:userId', async (c) => {
 
 /** All guild members from the local member store. */
 discord.get('/members', async (c) => c.json(await fetchMemberList()));
+
+/** Text channels in the configured guild (for search filters). */
+discord.get('/channels', async (c) => {
+  const result = await fetchChannelList();
+  if (!result.ok) {
+    const status: ContentfulStatusCode =
+      result.error === 'bot_not_connected' || result.error === 'guild_not_configured' ? 503 : 404;
+    return c.json({ error: result.error }, status);
+  }
+
+  return c.json(result.data);
+});
 
 /** Guild members currently online (online, idle, or dnd) from the local member store. */
 discord.get('/members/online', async (c) => c.json(await fetchOnlineMemberList()));
