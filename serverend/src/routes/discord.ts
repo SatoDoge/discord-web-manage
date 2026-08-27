@@ -6,6 +6,7 @@ import {
   fetchGlobalUserProfile,
   fetchGuildMemberProfile,
 } from '#server/services/discord/getMemberProfileService.js';
+import { searchGuildMessages } from '#server/services/discord/searchMessageService.js';
 import {
   applyPresenceUpdate,
   type PresenceUpdateInput,
@@ -84,6 +85,29 @@ discord.get('/members/:userId', async (c) => {
   const result = await fetchGuildMemberProfile(userId);
   if (!result.ok) {
     return c.json({ error: result.error }, profileErrorStatus(result.error));
+  }
+
+  return c.json(result.data);
+});
+
+/** Search guild messages (protected). Body matches searchMessageQuery. */
+discord.post('/messages/search', async (c) => {
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: 'invalid_body' }, 400);
+  }
+
+  const result = await searchGuildMessages(body);
+  if (!result.ok) {
+    const payload: { error: string; retry_after?: number } = {
+      error: result.error,
+    };
+    if (result.retryAfter !== undefined) {
+      payload.retry_after = result.retryAfter;
+    }
+    return c.json(payload, result.status as ContentfulStatusCode);
   }
 
   return c.json(result.data);
