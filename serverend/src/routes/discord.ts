@@ -1,11 +1,18 @@
 import { Hono } from 'hono';
 import type { ContentfulStatusCode } from 'hono/utils/http-status';
 import { requireAuth, type AuthVariables } from '#server/authMiddleware.js';
+import {
+  banMembers,
+  isValidDeleteMessageSeconds,
+} from '#server/services/discord/banMemberService.js';
 import { fetchClientStatus } from '#server/services/discord/getClientStatusService.js';
+import { fetchMemberList } from '#server/services/discord/getMemberListService.js';
 import {
   fetchGlobalUserProfile,
   fetchGuildMemberProfile,
 } from '#server/services/discord/getMemberProfileService.js';
+import { fetchOnlineMemberList } from '#server/services/discord/getOnlineMember.js';
+import { kickMembers } from '#server/services/discord/kickMemberService.js';
 import { searchGuildMessages } from '#server/services/discord/searchMessageService.js';
 import {
   applyPresenceUpdate,
@@ -60,6 +67,10 @@ function isSnowflake(value: string): boolean {
   return /^\d{17,20}$/.test(value);
 }
 
+function isSnowflakeArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.length > 0 && value.every((id) => typeof id === 'string' && isSnowflake(id));
+}
+
 /** Discord-wide user profile. */
 discord.get('/users/:userId', async (c) => {
   const userId = c.req.param('userId');
@@ -73,6 +84,74 @@ discord.get('/users/:userId', async (c) => {
   }
 
   return c.json(result.data);
+});
+
+/** All guild members from the local member store. */
+discord.get('/members', async (c) => c.json(await fetchMemberList()));
+
+/** Guild members currently online (online, idle, or dnd) from the local member store. */
+discord.get('/members/online', async (c) => c.json(await fetchOnlineMemberList()));
+
+/** Ban one or more guild members. */
+discord.post('/members/ban', async (c) => {
+  let body: {
+    userIds?: unknown;
+    reason?: unknown;
+    deleteMessageSeconds?: unknown;
+  };
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: 'invalid_body' }, 400);
+  }
+
+  if (!isSnowflakeArray(body.userIds)) {
+    return c.json({ error: 'invalid_user_ids' }, 400);
+  }
+  if (typeof body.reason !== 'string' || !body.reason.trim()) {
+    return c.json({ error: 'invalid_reason' }, 400);
+  }
+
+  const deleteMessageSeconds =
+    body.deleteMessageSeconds === undefined ? 0 : body.deleteMessageSeconds;
+  if (!isValidDeleteMessageSeconds(deleteMessageSeconds)) {
+    return c.json({ error: 'invalid_delete_message_seconds' }, 400);
+  }
+
+  const result = await banMembers({
+    userIds: body.userIds,
+    reason: body.reason,
+    deleteMessageSeconds,
+  });
+
+  return c.json(result);
+});
+
+/** Kick one or more guild members. */
+discord.post('/members/kick', async (c) => {
+  let body: {
+    userIds?: unknown;
+    reason?: unknown;
+  };
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: 'invalid_body' }, 400);
+  }
+
+  if (!isSnowflakeArray(body.userIds)) {
+    return c.json({ error: 'invalid_user_ids' }, 400);
+  }
+  if (typeof body.reason !== 'string' || !body.reason.trim()) {
+    return c.json({ error: 'invalid_reason' }, 400);
+  }
+
+  const result = await kickMembers({
+    userIds: body.userIds,
+    reason: body.reason,
+  });
+
+  return c.json(result);
 });
 
 /** Member profile in the current guild (`DISCORD_GUILD_ID`). */
