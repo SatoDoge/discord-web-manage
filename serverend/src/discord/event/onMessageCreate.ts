@@ -23,5 +23,7 @@ export async function handleMessageCreate(message: Message) {
 
     // Botのメッセージは無視
     if (message.author.bot) return;
+
+    // logger.info(`Message created: ${message}`);
     
 }
