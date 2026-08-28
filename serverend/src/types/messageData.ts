@@ -104,6 +104,11 @@ export type wordFilter = {
     filteredWordCount: number;
 }
 
+export type dupliFilter = {
+    isFiltered: boolean;
+    messageCount: number;
+}
+
 export type moderationFilter = {
     isFiltered: boolean;
     messageCount: number;
@@ -172,6 +177,7 @@ export type StoredGuildMessage = {
 
     // チェック
     wordFilter: wordFilter | null;
+    dupliFilter: dupliFilter | null;
     moderationFilter: moderationFilter | null;
     multipleMessageFilter: multipleMessageFilter | null;
 };
