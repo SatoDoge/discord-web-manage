@@ -175,3 +175,5 @@ export type StoredGuildMessage = {
     moderationFilter: moderationFilter | null;
     multipleMessageFilter: multipleMessageFilter | null;
 };
+
+export type StoredGuildMessageList = StoredGuildMessage[];
