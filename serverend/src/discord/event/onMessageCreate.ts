@@ -1,6 +1,7 @@
 import { getDiscordClient } from '#server/discord.js';
 import { Events, type Message } from 'discord.js';
 import { Logger } from '#server/utils/logger.js';
+import { handleMessageFilter } from '#server/discord/handlers/messageFilter.js';
 
 const logger = new Logger('discord.event.onMessageCreate');
 
@@ -25,5 +26,5 @@ export async function handleMessageCreate(message: Message) {
     if (message.author.bot) return;
 
     // logger.info(`Message created: ${message}`);
-    
+    await handleMessageFilter(message);
 }
