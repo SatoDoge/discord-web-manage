@@ -3,6 +3,10 @@ import { updateAdminUserList } from '#server/stores/adminUserStore.js';
 import { updateSessionDataList } from '#server/stores/sessionDataStore.js';
 import type { AdminUser } from '#server/types/adminUser.js';
 import { parseDurationMs } from '#server/utils/duration.js';
+import { Logger } from '#server/utils/logger.js';
+
+const logger = new Logger('auth.loginService');
+
 type DiscordTokenResponse = {
   access_token: string;
   token_type: string;
@@ -143,6 +147,7 @@ export async function loginWithDiscordCode(
   });
 
   if (!allowed) {
+    logger.error(`login failed: not admin user: ${profile.id} ${profile.username}`);
     return { ok: false, status: 403, error: 'not_admin' };
   }
 
@@ -158,6 +163,7 @@ export async function loginWithDiscordCode(
     return [...active, { sessionId, userId: profile.id, expiresAt }];
   });
 
+  logger.info(`login success: ${profile.id} ${profile.username}`);
   return {
     ok: true,
     sessionId,
