@@ -13,6 +13,7 @@ import {
     getModerationFilterSettings,
     getWordFilterSettings,
 } from "#server/stores/messageFilterSettingsStore.js";
+import { executeFilterMeasures } from "#server/discord/handlers/executeFilterMeasures.js";
 import type { StoredGuildMessage } from "#server/types/messageData.js";
 import type { Settings } from "#server/types/messageFilterSettings.js";
 import { Logger } from "#server/utils/logger.js";
@@ -122,6 +123,25 @@ export async function handleMessageFilter(message: Message) {
     if (isFilterApplicable(moderationFilterSettings, stored.channelId)) {
         await applyModerationFilter(stored, moderationFilterSettings);
     }
+
+    const triggeredSettings: Settings[] = [];
+
+    if (stored.wordFilter?.isFiltered && isFilterApplicable(wordFilterSettings, stored.channelId)) {
+        triggeredSettings.push(wordFilterSettings);
+    }
+
+    if (stored.dupliFilter?.isFiltered && isFilterApplicable(dupliFilterSettings, stored.channelId)) {
+        triggeredSettings.push(dupliFilterSettings);
+    }
+
+    if (
+        stored.moderationFilter?.isFiltered &&
+        isFilterApplicable(moderationFilterSettings, stored.channelId)
+    ) {
+        triggeredSettings.push(moderationFilterSettings);
+    }
+
+    await executeFilterMeasures(stored, triggeredSettings);
 
     const notifications = collectTriggeredNotifications(
         stored,
