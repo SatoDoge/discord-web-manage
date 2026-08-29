@@ -134,9 +134,13 @@ export function toStoredGuildMessage(
         firstSeenAt: syncedAt,
         lastSyncedAt: syncedAt,
         deletedAt: null,
+        isDeleted: false,
         wordFilter: null,
         dupliFilter: null,
         moderationFilter: null,
         multipleMessageFilter: null,
+        isFiltered: false,
+        isMeasured: false,
+        measuredMessage: null,
     };
 }
