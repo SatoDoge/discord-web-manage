@@ -2,6 +2,8 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import auth from '#server/routes/auth.js';
 import discord from '#server/routes/discord.js';
+import filter from '#server/routes/filter.js';
+import message from '#server/routes/message.js';
 import user from '#server/routes/user.js';
 import utils from '#server/routes/utils.js';
 import { Logger } from '#server/utils/logger.js';
@@ -31,6 +33,8 @@ export function createApp() {
   app.route('/api/auth', auth);
   app.route('/api/user', user);
   app.route('/api/discord', discord);
+  app.route('/api/filter', filter);
+  app.route('/api/message', message);
   app.route('/api', utils);
   
   logger.info('App created');
