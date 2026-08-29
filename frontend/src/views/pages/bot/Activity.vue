@@ -1,14 +1,13 @@
 <script setup>
-import {
-    ACTIVITY_TYPE_OPTIONS,
-    PRESENCE_STATUS_OPTIONS,
-    formatDiscordActivity,
-    formatPresenceStatus
-} from '@/utils/discordPresence';
+import { useDiscordPresence } from '@/composables/useDiscordPresence';
 import { useToast } from 'primevue/usetoast';
 import { computed, onMounted, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 
+const { t } = useI18n();
 const toast = useToast();
+const { presenceStatusOptions, activityTypeOptions, formatDiscordActivity, formatPresenceStatus } =
+    useDiscordPresence();
 
 const loading = ref(true);
 const saving = ref(false);
@@ -33,7 +32,7 @@ const isCustomActivity = computed(() => activityType.value === 4);
 
 const previewActivityText = computed(() => {
     if (clearActivity.value) {
-        return 'No activity set';
+        return t('bot.presence.noActivity');
     }
 
     return formatDiscordActivity({
@@ -46,7 +45,7 @@ const previewActivityText = computed(() => {
 const previewStatusLabel = computed(() => formatPresenceStatus(selectedStatus.value));
 
 const selectedStatusOption = computed(
-    () => PRESENCE_STATUS_OPTIONS.find((option) => option.value === selectedStatus.value) ?? PRESENCE_STATUS_OPTIONS[0]
+    () => presenceStatusOptions.value.find((option) => option.value === selectedStatus.value) ?? presenceStatusOptions.value[0]
 );
 
 function applyStatusToForm(status) {
@@ -79,8 +78,8 @@ async function loadStatus() {
     } catch {
         toast.add({
             severity: 'error',
-            summary: 'Load failed',
-            detail: 'Could not fetch the current bot status.',
+            summary: t('toast.loadFailed'),
+            detail: t('bot.presence.loadFailed'),
             life: 4000
         });
     } finally {
@@ -111,8 +110,8 @@ async function savePresence() {
     if (!isOnline.value) {
         toast.add({
             severity: 'warn',
-            summary: 'Bot offline',
-            detail: 'The Discord bot must be connected before updating presence.',
+            summary: t('bot.presence.offline'),
+            detail: t('bot.presence.offlineDetail'),
             life: 4000
         });
         return;
@@ -122,8 +121,8 @@ async function savePresence() {
         if (isCustomActivity.value && !activityState.value.trim()) {
             toast.add({
                 severity: 'warn',
-                summary: 'Validation',
-                detail: 'Custom status text is required.',
+                summary: t('toast.validation'),
+                detail: t('bot.presence.validationCustom'),
                 life: 4000
             });
             return;
@@ -132,8 +131,8 @@ async function savePresence() {
         if (!isCustomActivity.value && !activityName.value.trim()) {
             toast.add({
                 severity: 'warn',
-                summary: 'Validation',
-                detail: 'Activity name is required.',
+                summary: t('toast.validation'),
+                detail: t('bot.presence.validationName'),
                 life: 4000
             });
             return;
@@ -158,22 +157,22 @@ async function savePresence() {
         applyStatusToForm(data.status);
         toast.add({
             severity: 'success',
-            summary: 'Presence updated',
-            detail: 'Bot status and activity were saved.',
+            summary: t('bot.presence.saved'),
+            detail: t('bot.presence.savedDetail'),
             life: 3000
         });
     } catch (error) {
         const messages = {
-            bot_not_connected: 'The Discord bot is not connected.',
-            invalid_status: 'The selected status is invalid.',
-            invalid_activity_type: 'The selected activity type is invalid.',
-            invalid_activity_name: 'Activity details are incomplete.',
-            update_failed: 'Could not update bot presence.'
+            bot_not_connected: t('bot.presence.offlineDetail'),
+            invalid_status: t('bot.presence.updateFailed'),
+            invalid_activity_type: t('bot.presence.updateFailed'),
+            invalid_activity_name: t('bot.presence.updateFailed'),
+            update_failed: t('bot.presence.updateFailed')
         };
 
         toast.add({
             severity: 'error',
-            summary: 'Update failed',
+            summary: t('toast.saveFailed'),
             detail: messages[error.message] ?? messages.update_failed,
             life: 4000
         });
@@ -191,23 +190,23 @@ onMounted(loadStatus);
             <div class="col-span-12 xl:col-span-7">
                 <div class="card flex flex-col gap-6">
                     <div>
-                        <div class="font-semibold text-xl mb-2">Bot Presence</div>
-                        <p class="text-muted-color m-0">Update the Discord bot's online status and activity shown to server members.</p>
+                        <div class="font-semibold text-xl mb-2">{{ t('bot.presence.title') }}</div>
+                        <p class="text-muted-color m-0">{{ t('bot.presence.description') }}</p>
                     </div>
 
                     <Message v-if="!loading && !isOnline" severity="warn" :closable="false">
-                        The Discord bot is currently offline. Settings can be prepared, but changes will not apply until the bot connects.
+                        {{ t('bot.presence.offlineWarning') }}
                     </Message>
 
                     <div class="flex flex-col gap-2">
-                        <label for="presence-status">Online Status</label>
+                        <label for="presence-status">{{ t('bot.presence.onlineStatus') }}</label>
                         <Select
                             id="presence-status"
                             v-model="selectedStatus"
-                            :options="PRESENCE_STATUS_OPTIONS"
+                            :options="presenceStatusOptions"
                             optionLabel="label"
                             optionValue="value"
-                            placeholder="Select status"
+                            :placeholder="t('bot.presence.selectStatus')"
                             class="w-full"
                             :disabled="loading || saving"
                         >
@@ -215,7 +214,7 @@ onMounted(loadStatus);
                                 <div v-if="slotProps.value" class="flex items-center gap-2">
                                     <span
                                         class="status-dot"
-                                        :class="PRESENCE_STATUS_OPTIONS.find((option) => option.value === slotProps.value)?.dotClass"
+                                        :class="presenceStatusOptions.find((option) => option.value === slotProps.value)?.dotClass"
                                     ></span>
                                     <span>{{ formatPresenceStatus(slotProps.value) }}</span>
                                 </div>
@@ -232,30 +231,30 @@ onMounted(loadStatus);
 
                     <Divider />
 
-                    <div class="font-semibold text-lg">Activity</div>
+                    <div class="font-semibold text-lg">{{ t('bot.presence.activity') }}</div>
 
                     <div class="flex items-center gap-3">
                         <Checkbox v-model="clearActivity" inputId="clear-activity" binary :disabled="loading || saving" />
-                        <label for="clear-activity">Clear activity</label>
+                        <label for="clear-activity">{{ t('bot.presence.clearActivity') }}</label>
                     </div>
 
                     <div v-if="!clearActivity" class="flex flex-col gap-4">
                         <div class="flex flex-col gap-2">
-                            <label for="activity-type">Activity Type</label>
+                            <label for="activity-type">{{ t('bot.presence.activityType') }}</label>
                             <Select
                                 id="activity-type"
                                 v-model="activityType"
-                                :options="ACTIVITY_TYPE_OPTIONS"
+                                :options="activityTypeOptions"
                                 optionLabel="label"
                                 optionValue="value"
-                                placeholder="Select activity type"
+                                :placeholder="t('bot.presence.selectActivityType')"
                                 class="w-full"
                                 :disabled="loading || saving"
                             />
                         </div>
 
                         <div v-if="!isCustomActivity" class="flex flex-col gap-2">
-                            <label for="activity-name">Activity Name</label>
+                            <label for="activity-name">{{ t('bot.presence.activityName') }}</label>
                             <InputText
                                 id="activity-name"
                                 v-model="activityName"
@@ -266,7 +265,7 @@ onMounted(loadStatus);
                         </div>
 
                         <div v-else class="flex flex-col gap-2">
-                            <label for="activity-state">Custom Status Text</label>
+                            <label for="activity-state">{{ t('bot.presence.customStatus') }}</label>
                             <InputText
                                 id="activity-state"
                                 v-model="activityState"
@@ -286,7 +285,7 @@ onMounted(loadStatus);
 
             <div class="col-span-12 xl:col-span-5">
                 <div class="card flex flex-col gap-4 h-full">
-                    <div class="font-semibold text-xl">Preview</div>
+                    <div class="font-semibold text-xl">{{ t('bot.presence.preview') }}</div>
 
                     <div class="preview-card rounded-border p-4">
                         <div class="flex items-center gap-4">
@@ -298,7 +297,7 @@ onMounted(loadStatus);
                             </div>
 
                             <div class="min-w-0">
-                                <div class="font-semibold text-lg truncate">{{ clientStatus?.username ?? 'Discord Bot' }}</div>
+                                <div class="font-semibold text-lg truncate">{{ clientStatus?.username ?? t('bot.presence.discordBot') }}</div>
                                 <div class="flex items-center gap-2 text-muted-color mt-1">
                                     <span class="status-dot shrink-0" :class="selectedStatusOption.dotClass"></span>
                                     <span>{{ previewStatusLabel }}</span>
@@ -309,7 +308,7 @@ onMounted(loadStatus);
                     </div>
 
                     <div class="text-sm text-muted-color">
-                        This preview reflects the values in the form. Save to apply them to the connected Discord bot.
+                        {{ t('bot.presence.previewHint') }}
                     </div>
                 </div>
             </div>

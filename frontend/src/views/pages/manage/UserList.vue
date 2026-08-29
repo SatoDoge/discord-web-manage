@@ -1,9 +1,13 @@
 <script setup>
+import { useFilterOptions } from '@/composables/useFilterOptions';
 import { FilterMatchMode } from '@primevue/core/api';
 import { useToast } from 'primevue/usetoast';
 import { computed, onMounted, reactive, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 
+const { t } = useI18n();
 const toast = useToast();
+const { deleteMessageSecondsOptions } = useFilterOptions();
 
 const members = ref([]);
 const selectedMembers = ref([]);
@@ -15,17 +19,13 @@ const filters = ref({
     accountKind: { value: null, matchMode: FilterMatchMode.EQUALS }
 });
 
-const accountKindOptions = [
-    { label: 'Member', value: 'member' },
-    { label: 'Admin', value: 'admin' },
-    { label: 'Bot', value: 'bot' }
-];
+const accountKindOptions = computed(() => [
+    { label: t('manage.users.accountMember'), value: 'member' },
+    { label: t('manage.users.accountAdmin'), value: 'admin' },
+    { label: t('manage.users.accountBot'), value: 'bot' }
+]);
 
-const deleteMessageOptions = [
-    { label: 'Do not delete', value: 0 },
-    { label: 'Previous 24 hours', value: 24 * 60 * 60 },
-    { label: 'Previous 7 days', value: 7 * 24 * 60 * 60 }
-];
+const deleteMessageOptions = deleteMessageSecondsOptions;
 
 const actionDialog = reactive({
     visible: false,
@@ -36,7 +36,9 @@ const actionDialog = reactive({
 
 const selectedCount = computed(() => selectedMembers.value.length);
 
-const dialogTitle = computed(() => (actionDialog.type === 'ban' ? 'Ban Members' : 'Kick Members'));
+const dialogTitle = computed(() =>
+    actionDialog.type === 'ban' ? t('manage.users.banDialogTitle') : t('manage.users.kickDialogTitle')
+);
 
 const dialogSeverity = computed(() => (actionDialog.type === 'ban' ? 'danger' : 'warn'));
 
@@ -52,8 +54,8 @@ async function loadMembers() {
     } catch {
         toast.add({
             severity: 'error',
-            summary: 'Load failed',
-            detail: 'Could not fetch the member list.',
+            summary: t('toast.loadFailed'),
+            detail: t('manage.users.loadFailed'),
             life: 4000
         });
     } finally {
@@ -72,8 +74,8 @@ function openActionDialog(type) {
     if (!selectedMembers.value.length) {
         toast.add({
             severity: 'warn',
-            summary: 'No selection',
-            detail: 'Select at least one member first.',
+            summary: t('toast.noSelection'),
+            detail: t('manage.users.noSelectionDetail'),
             life: 3000
         });
         return;
@@ -126,11 +128,11 @@ function displayRoles(member) {
 function accountKindLabel(kind) {
     switch (kind) {
         case 'admin':
-            return 'Admin';
+            return t('manage.users.accountAdmin');
         case 'bot':
-            return 'Bot';
+            return t('manage.users.accountBot');
         default:
-            return 'Member';
+            return t('manage.users.accountMember');
     }
 }
 
@@ -150,15 +152,16 @@ function failureLabel(failure) {
     return `${name} (${failure.userId}): ${failure.error}`;
 }
 
-function showModerationResult(actionLabel, result) {
+function showModerationResult(type, result) {
     const failureDetail = result.failures?.length
         ? result.failures.map(failureLabel).join('\n')
         : undefined;
 
     toast.add({
         severity: result.failed > 0 ? 'warn' : 'success',
-        summary: `${actionLabel} complete`,
-        detail: `Succeeded ${result.succeeded}, failed ${result.failed}${failureDetail ? `\n${failureDetail}` : ''}`,
+        summary: type === 'ban' ? t('manage.users.banComplete') : t('manage.users.kickComplete'),
+        detail: t('manage.users.resultSummary', { succeeded: result.succeeded, failed: result.failed }) +
+            (failureDetail ? `\n${failureDetail}` : ''),
         life: result.failed > 0 ? 10000 : 4000
     });
 }
@@ -167,8 +170,8 @@ async function confirmAction() {
     if (!actionDialog.reason.trim()) {
         toast.add({
             severity: 'warn',
-            summary: 'Validation',
-            detail: 'Reason is required.',
+            summary: t('toast.validation'),
+            detail: t('manage.users.reasonRequired'),
             life: 3000
         });
         return;
@@ -203,13 +206,13 @@ async function confirmAction() {
         }
 
         actionDialog.visible = false;
-        showModerationResult(actionDialog.type === 'ban' ? 'Ban' : 'Kick', data);
+        showModerationResult(actionDialog.type, data);
         await loadMembers();
     } catch (error) {
         toast.add({
             severity: 'error',
-            summary: 'Action failed',
-            detail: error.message === 'invalid_reason' ? 'Reason is required.' : 'Could not complete the moderation action.',
+            summary: t('toast.actionFailed'),
+            detail: error.message === 'invalid_reason' ? t('manage.users.reasonRequired') : t('manage.users.actionFailed'),
             life: 4000
         });
     } finally {
@@ -224,8 +227,8 @@ onMounted(loadMembers);
     <div class="card">
         <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
             <div>
-                <div class="font-semibold text-xl">User List</div>
-                <p class="text-muted-color m-0 mt-1">Browse guild members and apply bulk kick or ban actions.</p>
+                <div class="font-semibold text-xl">{{ t('manage.users.title') }}</div>
+                <p class="text-muted-color m-0 mt-1">{{ t('manage.users.description') }}</p>
             </div>
             <div class="flex flex-wrap gap-2">
                 <Button label="Refresh" icon="pi pi-refresh" severity="secondary" outlined :disabled="loading || submitting" @click="loadMembers" />
@@ -256,23 +259,23 @@ onMounted(loadMembers);
                         <InputIcon>
                             <i class="pi pi-search" />
                         </InputIcon>
-                        <InputText v-model="filters['global'].value" placeholder="Search by id or name" />
+                        <InputText v-model="filters['global'].value" :placeholder="t('manage.users.searchPlaceholder')" />
                     </IconField>
                 </div>
             </template>
 
-            <template #empty>No members found.</template>
-            <template #loading>Loading members. Please wait.</template>
+            <template #empty>{{ t('manage.users.empty') }}</template>
+            <template #loading>{{ t('manage.users.loading') }}</template>
 
             <Column selectionMode="multiple" headerStyle="width: 3rem" />
 
-            <Column field="id" header="ID" style="min-width: 12rem">
+            <Column header="ID" style="min-width: 12rem">
                 <template #body="{ data }">
                     <span class="font-mono text-sm">{{ data.id }}</span>
                 </template>
             </Column>
 
-            <Column header="User" style="min-width: 16rem">
+            <Column :header="t('manage.users.user')" style="min-width: 16rem">
                 <template #body="{ data }">
                     <div class="flex items-center gap-3">
                         <img :src="data.guildAvatarURL || data.avatarURL" :alt="data.displayName" class="user-avatar" />
@@ -284,28 +287,28 @@ onMounted(loadMembers);
                 </template>
             </Column>
 
-            <Column field="accountKind" header="Account Type" style="min-width: 9rem">
+            <Column field="accountKind" :header="t('manage.users.accountType')" style="min-width: 9rem">
                 <template #body="{ data }">
                     <Tag :value="accountKindLabel(data.accountKind)" :severity="accountKindSeverity(data.accountKind)" />
                 </template>
                 <template #filter="{ filterModel }">
-                    <Select v-model="filterModel.value" :options="accountKindOptions" optionLabel="label" optionValue="value" placeholder="Any" showClear class="w-full" />
+                    <Select v-model="filterModel.value" :options="accountKindOptions" optionLabel="label" optionValue="value" :placeholder="t('common.any')" showClear class="w-full" />
                 </template>
             </Column>
 
-            <Column field="accountCreatedAt" header="Account Created" style="min-width: 11rem">
+            <Column field="accountCreatedAt" :header="t('manage.users.accountCreated')" style="min-width: 11rem">
                 <template #body="{ data }">
                     {{ formatDate(data.accountCreatedAt) }}
                 </template>
             </Column>
 
-            <Column field="joinedAt" header="Joined Server" style="min-width: 11rem">
+            <Column field="joinedAt" :header="t('manage.users.joinedServer')" style="min-width: 11rem">
                 <template #body="{ data }">
                     {{ formatDate(data.joinedAt) }}
                 </template>
             </Column>
 
-            <Column header="Roles" style="min-width: 14rem">
+            <Column :header="t('manage.users.roles')" style="min-width: 14rem">
                 <template #body="{ data }">
                     <div class="flex flex-wrap gap-1">
                         <Tag
@@ -320,7 +323,7 @@ onMounted(loadMembers);
                 </template>
             </Column>
 
-            <Column header="Join Delay" style="min-width: 8rem">
+            <Column :header="t('manage.users.joinDelay')" style="min-width: 8rem">
                 <template #body="{ data }">
                     {{ formatJoinDelay(data) }}
                 </template>
@@ -331,16 +334,20 @@ onMounted(loadMembers);
     <Dialog v-model:visible="actionDialog.visible" modal :header="dialogTitle" :style="{ width: '32rem' }" :closable="!submitting">
         <div class="flex flex-col gap-4">
             <Message :severity="dialogSeverity" :closable="false">
-                {{ selectedCount }} member{{ selectedCount === 1 ? '' : 's' }} will be {{ actionDialog.type === 'ban' ? 'banned' : 'kicked' }}.
+                {{
+                    actionDialog.type === 'ban'
+                        ? t('manage.users.membersWillBeBanned', { count: selectedCount })
+                        : t('manage.users.membersWillBeKicked', { count: selectedCount })
+                }}
             </Message>
 
             <div class="flex flex-col gap-2">
-                <label for="moderation-reason">Reason</label>
-                <Textarea id="moderation-reason" v-model="actionDialog.reason" rows="4" class="w-full" :disabled="submitting" placeholder="Enter a reason for this action" />
+                <label for="moderation-reason">{{ t('common.reason') }}</label>
+                <Textarea id="moderation-reason" v-model="actionDialog.reason" rows="4" class="w-full" :disabled="submitting" :placeholder="t('manage.users.reasonPlaceholder')" />
             </div>
 
             <div v-if="actionDialog.type === 'ban'" class="flex flex-col gap-2">
-                <label for="delete-message-seconds">Delete recent messages</label>
+                <label for="delete-message-seconds">{{ t('manage.users.deleteRecentMessages') }}</label>
                 <Select
                     id="delete-message-seconds"
                     v-model="actionDialog.deleteMessageSeconds"

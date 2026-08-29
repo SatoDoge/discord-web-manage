@@ -1,5 +1,8 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
+
+const { t } = useI18n();
 
 const loading = ref(true);
 const onlineCount = ref(null);
@@ -28,12 +31,12 @@ const countLabel = computed(() => {
 
 const detailText = computed(() => {
     if (loading.value) {
-        return 'Fetching online members…';
+        return t('dashboard.fetchingOnlineMembers');
     }
     if (onlineCount.value == null) {
-        return 'Could not load online members';
+        return t('dashboard.onlineMembersFailed');
     }
-    return 'Users currently online in this server';
+    return t('dashboard.onlineMembersDetail');
 });
 </script>
 
@@ -47,7 +50,7 @@ const detailText = computed(() => {
                             class="status-dot shrink-0"
                             :class="loading ? 'status-dot--loading' : onlineCount != null ? 'status-dot--online' : 'status-dot--offline'"
                         ></span>
-                        Online Members
+                        {{ t('dashboard.onlineMembers') }}
                     </span>
                     <div class="text-surface-900 dark:text-surface-0 font-medium text-xl truncate">{{ countLabel }}</div>
                     <div class="text-muted-color text-sm mt-1 truncate">{{ detailText }}</div>
