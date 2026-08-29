@@ -19,7 +19,7 @@ export type StoredMessageAttachment = {
     description: string | null;
 
     contentType: string | null; // "image/png", "application/pdf" など
-    size: number;               // bytes
+    size: number; // bytes
 
     url: string;
     proxyURL: string;
@@ -102,27 +102,49 @@ export type wordFilter = {
     isFiltered: boolean;
     filteredWords: string[];
     filteredWordCount: number;
-}
+};
 
 export type dupliFilter = {
     isFiltered: boolean;
     messageCount: number;
-}
+};
 
 export type moderationFilter = {
     isFiltered: boolean;
     messageCount: number;
-}
+};
 
 export type moderationImage = {
     url: string;
-    moderation: OpenAI.Moderations.ModerationCreateResponse["results"][number] | null;
-}
+    moderation:
+        OpenAI.Moderations.ModerationCreateResponse["results"][number] | null;
+};
 
 export type multipleMessageFilter = {
-    content: OpenAI.Moderations.ModerationCreateResponse["results"][number] | null;
+    content:
+        OpenAI.Moderations.ModerationCreateResponse["results"][number] | null;
     image: moderationImage[] | null;
-}
+};
+
+export type MeasuredMessage = {
+    command: "ban" | "kick" | "role" | "delete" | "none";
+    operationUserId: string;
+    banDetail: {
+        reason: string;
+        deleteMessageSeconds: number;
+    } | null;
+    kickDetail: {
+        reason: string;
+        kickSeconds: number;
+    } | null;
+    roleDetail: {
+        roleId: string;
+    } | null;
+    deleteDetail: {
+        isDeleted: boolean;
+    } | null;
+    measuredAt: string; // 実行完了日時
+};
 
 export type StoredGuildMessage = {
     // DB上の主キーにできる。Discord全体で一意
@@ -175,11 +197,17 @@ export type StoredGuildMessage = {
     // messageDeleteを受けたら値を入れ、レコード自体は残す想定
     deletedAt: string | null;
 
+    // 削除フラグ
+    isDeleted: boolean;
+
     // チェック
     wordFilter: wordFilter | null;
     dupliFilter: dupliFilter | null;
     moderationFilter: moderationFilter | null;
     multipleMessageFilter: multipleMessageFilter | null;
+    isFiltered: boolean;
+    isMeasured: boolean;
+    measuredMessage: MeasuredMessage[] | null;
 };
 
 export type StoredGuildMessageList = StoredGuildMessage[];
