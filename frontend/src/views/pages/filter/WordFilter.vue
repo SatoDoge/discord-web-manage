@@ -5,7 +5,9 @@ import { apiFetch } from '@/utils/api';
 import { createWordFilterSettings, linesToList, listToLines } from '@/utils/filterDefaults';
 import { useToast } from 'primevue/usetoast';
 import { onMounted, reactive, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 
+const { t } = useI18n();
 const toast = useToast();
 const { channelOptions, notificationChannelOptions, roleOptions, loading: loadingOptions, loadDiscordOptions } =
     useDiscordOptions();
@@ -37,8 +39,8 @@ async function loadSettings() {
     } catch {
         toast.add({
             severity: 'error',
-            summary: 'Load failed',
-            detail: 'Could not fetch word filter settings.',
+            summary: t('filter.toast.loadFailed'),
+            detail: t('filter.word.loadFailed'),
             life: 4000
         });
     } finally {
@@ -56,15 +58,15 @@ async function saveSettings() {
         }));
         toast.add({
             severity: 'success',
-            summary: 'Saved',
-            detail: 'Word filter settings were updated.',
+            summary: t('filter.toast.saved'),
+            detail: t('filter.word.saveSuccess'),
             life: 3000
         });
     } catch {
         toast.add({
             severity: 'error',
-            summary: 'Save failed',
-            detail: 'Could not update word filter settings.',
+            summary: t('filter.toast.saveFailed'),
+            detail: t('filter.word.saveFailed'),
             life: 4000
         });
     } finally {
@@ -83,9 +85,9 @@ onMounted(async () => {
             <div class="col-span-12 xl:col-span-8">
                 <div class="card flex flex-col gap-6">
                     <div>
-                        <div class="font-semibold text-xl mb-2">Word Filter</div>
+                        <div class="font-semibold text-xl mb-2">{{ t('filter.word.title') }}</div>
                         <p class="text-muted-color m-0">
-                            Block messages that contain specific words or URLs in text, embeds, and attachments.
+                            {{ t('filter.word.description') }}
                         </p>
                     </div>
 
@@ -100,8 +102,8 @@ onMounted(async () => {
                     <Divider />
 
                     <div>
-                        <div class="font-semibold text-lg mb-1">Blocked words</div>
-                        <p class="text-muted-color m-0 text-sm">One word or phrase per line.</p>
+                        <div class="font-semibold text-lg mb-1">{{ t('filter.word.blockedWords') }}</div>
+                        <p class="text-muted-color m-0 text-sm">{{ t('filter.word.blockedWordsHint') }}</p>
                     </div>
 
                     <Textarea
@@ -113,8 +115,8 @@ onMounted(async () => {
                     />
 
                     <div>
-                        <div class="font-semibold text-lg mb-1">Blocked URL patterns</div>
-                        <p class="text-muted-color m-0 text-sm">One pattern per line. Use * as a suffix wildcard.</p>
+                        <div class="font-semibold text-lg mb-1">{{ t('filter.word.blockedUrls') }}</div>
+                        <p class="text-muted-color m-0 text-sm">{{ t('filter.word.blockedUrlsHint') }}</p>
                     </div>
 
                     <Textarea

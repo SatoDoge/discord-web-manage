@@ -5,7 +5,9 @@ import { apiFetch } from '@/utils/api';
 import { createDupliFilterSettings } from '@/utils/filterDefaults';
 import { useToast } from 'primevue/usetoast';
 import { onMounted, reactive, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 
+const { t } = useI18n();
 const toast = useToast();
 const { channelOptions, notificationChannelOptions, roleOptions, loading: loadingOptions, loadDiscordOptions } =
     useDiscordOptions();
@@ -25,8 +27,8 @@ async function loadSettings() {
     } catch {
         toast.add({
             severity: 'error',
-            summary: 'Load failed',
-            detail: 'Could not fetch duplicate filter settings.',
+            summary: t('filter.toast.loadFailed'),
+            detail: t('filter.dupli.loadFailed'),
             life: 4000
         });
     } finally {
@@ -44,15 +46,15 @@ async function saveSettings() {
         }));
         toast.add({
             severity: 'success',
-            summary: 'Saved',
-            detail: 'Duplicate filter settings were updated.',
+            summary: t('filter.toast.saved'),
+            detail: t('filter.dupli.saveSuccess'),
             life: 3000
         });
     } catch {
         toast.add({
             severity: 'error',
-            summary: 'Save failed',
-            detail: 'Could not update duplicate filter settings.',
+            summary: t('filter.toast.saveFailed'),
+            detail: t('filter.dupli.saveFailed'),
             life: 4000
         });
     } finally {
@@ -71,9 +73,9 @@ onMounted(async () => {
             <div class="col-span-12 xl:col-span-8">
                 <div class="card flex flex-col gap-6">
                     <div>
-                        <div class="font-semibold text-xl mb-2">Duplicate Filter</div>
+                        <div class="font-semibold text-xl mb-2">{{ t('filter.dupli.title') }}</div>
                         <p class="text-muted-color m-0">
-                            Detect rapid or repeated messages from the same user within short time windows.
+                            {{ t('filter.dupli.description') }}
                         </p>
                     </div>
 
@@ -88,13 +90,13 @@ onMounted(async () => {
                     <Divider />
 
                     <div>
-                        <div class="font-semibold text-lg mb-1">Thresholds</div>
-                        <p class="text-muted-color m-0 text-sm">Leave a field empty to disable that window.</p>
+                        <div class="font-semibold text-lg mb-1">{{ t('filter.dupli.thresholds') }}</div>
+                        <p class="text-muted-color m-0 text-sm">{{ t('filter.dupli.thresholdsHint') }}</p>
                     </div>
 
                     <div class="grid grid-cols-12 gap-4">
                         <div class="col-span-12 md:col-span-4 flex flex-col gap-2">
-                            <label for="dupli-per-second">Per 1 second</label>
+                            <label for="dupli-per-second">{{ t('filter.dupli.perSecond') }}</label>
                             <InputNumber
                                 id="dupli-per-second"
                                 v-model="form.duplicateMessagePerSeconds"
@@ -102,11 +104,11 @@ onMounted(async () => {
                                 :disabled="loading || saving"
                                 :min="1"
                                 showButtons
-                                placeholder="Disabled"
+                                :placeholder="t('filter.common.disabled')"
                             />
                         </div>
                         <div class="col-span-12 md:col-span-4 flex flex-col gap-2">
-                            <label for="dupli-per-10-seconds">Per 10 seconds</label>
+                            <label for="dupli-per-10-seconds">{{ t('filter.dupli.per10Seconds') }}</label>
                             <InputNumber
                                 id="dupli-per-10-seconds"
                                 v-model="form.duplicateMessagePer10Seconds"
@@ -114,11 +116,11 @@ onMounted(async () => {
                                 :disabled="loading || saving"
                                 :min="1"
                                 showButtons
-                                placeholder="Disabled"
+                                :placeholder="t('filter.common.disabled')"
                             />
                         </div>
                         <div class="col-span-12 md:col-span-4 flex flex-col gap-2">
-                            <label for="dupli-per-minute">Per 1 minute</label>
+                            <label for="dupli-per-minute">{{ t('filter.dupli.perMinute') }}</label>
                             <InputNumber
                                 id="dupli-per-minute"
                                 v-model="form.duplicateMessagePerMinutes"
@@ -126,7 +128,7 @@ onMounted(async () => {
                                 :disabled="loading || saving"
                                 :min="1"
                                 showButtons
-                                placeholder="Disabled"
+                                :placeholder="t('filter.common.disabled')"
                             />
                         </div>
                     </div>
@@ -138,7 +140,7 @@ onMounted(async () => {
                             binary
                             :disabled="loading || saving"
                         />
-                        <label for="dupli-same-content">Count only messages with identical content</label>
+                        <label for="dupli-same-content">{{ t('filter.dupli.sameContentOnly') }}</label>
                     </div>
 
                     <div class="flex flex-wrap gap-3 pt-2">

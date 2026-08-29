@@ -1,12 +1,16 @@
 <script setup>
 import FilterCommonSettings from '@/components/filter/FilterCommonSettings.vue';
 import { useDiscordOptions } from '@/composables/useDiscordOptions';
+import { useFilterOptions } from '@/composables/useFilterOptions';
 import { apiFetch } from '@/utils/api';
-import { createModerationFilterSettings, MODERATION_CATEGORIES } from '@/utils/filterDefaults';
+import { createModerationFilterSettings } from '@/utils/filterDefaults';
 import { useToast } from 'primevue/usetoast';
 import { onMounted, reactive, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 
+const { t } = useI18n();
 const toast = useToast();
+const { moderationCategoryOptions } = useFilterOptions();
 const { channelOptions, notificationChannelOptions, roleOptions, loading: loadingOptions, loadDiscordOptions } =
     useDiscordOptions();
 
@@ -25,8 +29,8 @@ async function loadSettings() {
     } catch {
         toast.add({
             severity: 'error',
-            summary: 'Load failed',
-            detail: 'Could not fetch moderation filter settings.',
+            summary: t('filter.toast.loadFailed'),
+            detail: t('filter.moderation.loadFailed'),
             life: 4000
         });
     } finally {
@@ -44,15 +48,15 @@ async function saveSettings() {
         }));
         toast.add({
             severity: 'success',
-            summary: 'Saved',
-            detail: 'Moderation filter settings were updated.',
+            summary: t('filter.toast.saved'),
+            detail: t('filter.moderation.saveSuccess'),
             life: 3000
         });
     } catch {
         toast.add({
             severity: 'error',
-            summary: 'Save failed',
-            detail: 'Could not update moderation filter settings.',
+            summary: t('filter.toast.saveFailed'),
+            detail: t('filter.moderation.saveFailed'),
             life: 4000
         });
     } finally {
@@ -71,9 +75,9 @@ onMounted(async () => {
             <div class="col-span-12 xl:col-span-8">
                 <div class="card flex flex-col gap-6">
                     <div>
-                        <div class="font-semibold text-xl mb-2">Moderation Filter</div>
+                        <div class="font-semibold text-xl mb-2">{{ t('filter.moderation.title') }}</div>
                         <p class="text-muted-color m-0">
-                            Use OpenAI moderation to flag harmful text and images. Custom thresholds override the default flagged result.
+                            {{ t('filter.moderation.description') }}
                         </p>
                     </div>
 
@@ -88,7 +92,7 @@ onMounted(async () => {
                     <Divider />
 
                     <div>
-                        <div class="font-semibold text-lg mb-1">Detection scope</div>
+                        <div class="font-semibold text-lg mb-1">{{ t('filter.moderation.detectionScope') }}</div>
                     </div>
 
                     <div class="flex items-center gap-3">
@@ -98,7 +102,7 @@ onMounted(async () => {
                             binary
                             :disabled="loading || saving"
                         />
-                        <label for="moderation-content">Check message text, embeds, and attachment metadata</label>
+                        <label for="moderation-content">{{ t('filter.moderation.checkContent') }}</label>
                     </div>
 
                     <div class="flex items-center gap-3">
@@ -108,15 +112,15 @@ onMounted(async () => {
                             binary
                             :disabled="loading || saving"
                         />
-                        <label for="moderation-image">Check image attachments and embed images</label>
+                        <label for="moderation-image">{{ t('filter.moderation.checkImage') }}</label>
                     </div>
 
                     <Divider />
 
                     <div>
-                        <div class="font-semibold text-lg mb-1">Custom thresholds</div>
+                        <div class="font-semibold text-lg mb-1">{{ t('filter.moderation.customThresholds') }}</div>
                         <p class="text-muted-color m-0 text-sm">
-                            Enable custom thresholds to flag content when a category score reaches the configured value between 0 and 1.
+                            {{ t('filter.moderation.customThresholdsHint') }}
                         </p>
                     </div>
 
@@ -127,12 +131,12 @@ onMounted(async () => {
                             binary
                             :disabled="loading || saving"
                         />
-                        <label for="moderation-custom-flag">Use custom category thresholds</label>
+                        <label for="moderation-custom-flag">{{ t('filter.moderation.useCustomFlag') }}</label>
                     </div>
 
                     <div v-if="form.isUseCustomFlag" class="grid grid-cols-12 gap-4">
                         <div
-                            v-for="category in MODERATION_CATEGORIES"
+                            v-for="category in moderationCategoryOptions"
                             :key="category.key"
                             class="col-span-12 md:col-span-6 flex flex-col gap-2"
                         >
@@ -149,7 +153,7 @@ onMounted(async () => {
                                 :minFractionDigits="2"
                                 :maxFractionDigits="2"
                                 showButtons
-                                placeholder="Disabled"
+                                :placeholder="t('filter.common.disabled')"
                             />
                         </div>
                     </div>

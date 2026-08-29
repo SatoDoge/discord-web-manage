@@ -1,12 +1,15 @@
 <script setup>
 import { useDiscordOptions } from '@/composables/useDiscordOptions';
+import { useFilterOptions } from '@/composables/useFilterOptions';
 import { apiFetch } from '@/utils/api';
-import { DELETE_MESSAGE_SECONDS_OPTIONS } from '@/utils/filterDefaults';
 import { FilterMatchMode } from '@primevue/core/api';
 import { useToast } from 'primevue/usetoast';
 import { computed, onMounted, reactive, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 
+const { t } = useI18n();
 const toast = useToast();
+const { deleteMessageSecondsOptions } = useFilterOptions();
 const {
     roleOptions,
     memberNameById,
@@ -37,10 +40,10 @@ const filters = ref({
 
 const showFilteredOnly = ref(true);
 
-const filteredOnlyOptions = [
-    { label: 'Filtered only', value: true },
-    { label: 'All messages', value: false }
-];
+const filteredOnlyOptions = computed(() => [
+    { label: t('filter.messageDb.filteredOnly'), value: true },
+    { label: t('filter.messageDb.allMessages'), value: false }
+]);
 
 const tableMessages = computed(() => {
     if (!showFilteredOnly.value) {
@@ -57,6 +60,21 @@ const roleNameById = computed(() => {
     return map;
 });
 
+const actionDialogTitle = computed(() => {
+    switch (actionDialog.type) {
+        case 'delete':
+            return t('filter.messageDb.actionDeleteTitle');
+        case 'ban':
+            return t('filter.messageDb.actionBanTitle');
+        case 'kick':
+            return t('filter.messageDb.actionKickTitle');
+        case 'role':
+            return t('filter.messageDb.actionRoleTitle');
+        default:
+            return '';
+    }
+});
+
 function formatDate(value) {
     if (!value) {
         return '—';
@@ -67,7 +85,7 @@ function formatDate(value) {
 function truncateContent(message) {
     const text = message.cleanContent || message.content || '';
     if (!text) {
-        return '(no text content)';
+        return t('filter.messageDb.noContent');
     }
     return text.length > 120 ? `${text.slice(0, 120)}…` : text;
 }
@@ -80,13 +98,13 @@ function channelLabel(channelId) {
 function filterTags(message) {
     const tags = [];
     if (message.wordFilter?.isFiltered) {
-        tags.push({ label: 'Word', severity: 'danger' });
+        tags.push({ label: t('filter.messageDb.tagWord'), severity: 'danger' });
     }
     if (message.dupliFilter?.isFiltered) {
-        tags.push({ label: 'Duplicate', severity: 'warn' });
+        tags.push({ label: t('filter.messageDb.tagDuplicate'), severity: 'warn' });
     }
     if (message.moderationFilter?.isFiltered) {
-        tags.push({ label: 'Moderation', severity: 'info' });
+        tags.push({ label: t('filter.messageDb.tagModeration'), severity: 'info' });
     }
     return tags;
 }
@@ -94,15 +112,15 @@ function filterTags(message) {
 function measureCommandLabel(command) {
     switch (command) {
         case 'delete':
-            return 'Delete';
+            return t('filter.messageDb.measureDelete');
         case 'ban':
-            return 'Ban';
+            return t('filter.messageDb.measureBan');
         case 'kick':
-            return 'Kick';
+            return t('filter.messageDb.measureKick');
         case 'role':
-            return 'Role';
+            return t('filter.messageDb.measureRole');
         default:
-            return 'Failed';
+            return t('filter.messageDb.measureFailed');
     }
 }
 
@@ -124,26 +142,44 @@ function measureCommandSeverity(command) {
 function measureDetailText(entry) {
     if (entry.command === 'delete' || entry.command === 'none') {
         if (entry.deleteDetail) {
-            return entry.deleteDetail.isDeleted ? 'Message deleted' : 'Delete failed';
+            return entry.deleteDetail.isDeleted
+                ? t('filter.messageDb.messageDeleted')
+                : t('filter.messageDb.deleteFailed');
         }
     }
     if (entry.command === 'ban' || (entry.command === 'none' && entry.banDetail)) {
         const detail = entry.banDetail;
-        return detail ? `Reason: ${detail.reason || '—'} / Delete messages: ${detail.deleteMessageSeconds}s` : '—';
+        return detail
+            ? t('filter.messageDb.banDetail', {
+                  reason: detail.reason || '—',
+                  seconds: detail.deleteMessageSeconds
+              })
+            : '—';
     }
     if (entry.command === 'kick' || (entry.command === 'none' && entry.kickDetail)) {
         const detail = entry.kickDetail;
-        return detail ? `Reason: ${detail.reason || '—'} / Kick seconds: ${detail.kickSeconds}` : '—';
+        return detail
+            ? t('filter.messageDb.kickDetail', {
+                  reason: detail.reason || '—',
+                  seconds: detail.kickSeconds
+              })
+            : '—';
     }
     if (entry.command === 'role' || (entry.command === 'none' && entry.roleDetail)) {
         const roleId = entry.roleDetail?.roleId;
-        return roleId ? `Role: ${roleNameById.value.get(roleId) ?? roleId}` : '—';
+        return roleId
+            ? t('filter.messageDb.roleDetail', {
+                  role: roleNameById.value.get(roleId) ?? roleId
+              })
+            : '—';
     }
     return '—';
 }
 
 function operatorLabel(userId) {
-    return memberNameById.value.get(userId) ?? userId;
+    return t('filter.messageDb.operator', {
+        name: memberNameById.value.get(userId) ?? userId
+    });
 }
 
 async function loadMessages() {
@@ -153,8 +189,8 @@ async function loadMessages() {
     } catch {
         toast.add({
             severity: 'error',
-            summary: 'Load failed',
-            detail: 'Could not fetch stored messages.',
+            summary: t('filter.toast.loadFailed'),
+            detail: t('filter.messageDb.loadFailed'),
             life: 4000
         });
     } finally {
@@ -188,8 +224,8 @@ function openActionDialog(type) {
     if (!detailDialog.message?.isFiltered) {
         toast.add({
             severity: 'warn',
-            summary: 'Not filtered',
-            detail: 'Manual measures can only be applied to filtered messages.',
+            summary: t('filter.messageDb.notFiltered'),
+            detail: t('filter.messageDb.notFilteredDetail'),
             life: 3000
         });
         return;
@@ -253,16 +289,16 @@ async function confirmAction() {
         actionDialog.visible = false;
         toast.add({
             severity: 'success',
-            summary: 'Action recorded',
-            detail: 'The measure was applied and saved to the message record.',
+            summary: t('filter.messageDb.actionRecorded'),
+            detail: t('filter.messageDb.actionRecordedDetail'),
             life: 3000
         });
     } catch (error) {
         if (error.handled || error.message === 'invalid_reason') {
             toast.add({
                 severity: 'warn',
-                summary: 'Validation',
-                detail: 'Reason is required.',
+                summary: t('filter.toast.validation'),
+                detail: t('filter.messageDb.reasonRequired'),
                 life: 3000
             });
             return;
@@ -270,8 +306,8 @@ async function confirmAction() {
         if (error.message === 'invalid_role_id') {
             toast.add({
                 severity: 'warn',
-                summary: 'Validation',
-                detail: 'Select a role first.',
+                summary: t('filter.toast.validation'),
+                detail: t('filter.messageDb.roleRequired'),
                 life: 3000
             });
             return;
@@ -279,8 +315,13 @@ async function confirmAction() {
 
         toast.add({
             severity: 'error',
-            summary: 'Action failed',
-            detail: error.data?.banError || error.data?.kickError || error.data?.roleError || error.data?.deleteError || 'Could not complete the measure.',
+            summary: t('filter.toast.actionFailed'),
+            detail:
+                error.data?.banError ||
+                error.data?.kickError ||
+                error.data?.roleError ||
+                error.data?.deleteError ||
+                t('filter.messageDb.actionFailed'),
             life: 5000
         });
 
@@ -306,9 +347,9 @@ onMounted(async () => {
     <div class="card">
         <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
             <div>
-                <div class="font-semibold text-xl">Message DB</div>
+                <div class="font-semibold text-xl">{{ t('filter.messageDb.title') }}</div>
                 <p class="text-muted-color m-0 mt-1">
-                    Review filtered messages stored by the bot and track measures taken against each author.
+                    {{ t('filter.messageDb.description') }}
                 </p>
             </div>
             <Button label="Refresh" icon="pi pi-refresh" severity="secondary" outlined :disabled="loading || submitting" @click="loadMessages" />
@@ -344,19 +385,19 @@ onMounted(async () => {
                     </div>
                     <IconField>
                         <InputIcon><i class="pi pi-search" /></InputIcon>
-                        <InputText v-model="filters.global.value" placeholder="Search messages" />
+                        <InputText v-model="filters.global.value" :placeholder="t('filter.messageDb.searchPlaceholder')" />
                     </IconField>
                 </div>
             </template>
 
-            <template #empty>No stored messages found.</template>
-            <template #loading>Loading messages. Please wait.</template>
+            <template #empty>{{ t('filter.messageDb.empty') }}</template>
+            <template #loading>{{ t('filter.messageDb.loading') }}</template>
 
-            <Column field="createdAt" header="Posted" style="min-width: 11rem" sortable>
+            <Column field="createdAt" :header="t('filter.messageDb.posted')" style="min-width: 11rem" sortable>
                 <template #body="{ data }">{{ formatDate(data.createdAt) }}</template>
             </Column>
 
-            <Column header="Author" style="min-width: 14rem">
+            <Column :header="t('filter.messageDb.author')" style="min-width: 14rem">
                 <template #body="{ data }">
                     <div class="flex items-center gap-3">
                         <img :src="data.author.avatarURL" :alt="data.author.displayName ?? data.author.username" class="user-avatar" />
@@ -368,17 +409,17 @@ onMounted(async () => {
                 </template>
             </Column>
 
-            <Column header="Channel" style="min-width: 9rem">
+            <Column :header="t('filter.messageDb.channel')" style="min-width: 9rem">
                 <template #body="{ data }">{{ channelLabel(data.channelId) }}</template>
             </Column>
 
-            <Column header="Content" style="min-width: 18rem">
+            <Column :header="t('filter.messageDb.content')" style="min-width: 18rem">
                 <template #body="{ data }">
                     <span class="line-clamp-2">{{ truncateContent(data) }}</span>
                 </template>
             </Column>
 
-            <Column header="Filters" style="min-width: 12rem">
+            <Column :header="t('filter.messageDb.filters')" style="min-width: 12rem">
                 <template #body="{ data }">
                     <div class="flex flex-wrap gap-1">
                         <Tag v-for="tag in filterTags(data)" :key="tag.label" :value="tag.label" :severity="tag.severity" />
@@ -387,15 +428,18 @@ onMounted(async () => {
                 </template>
             </Column>
 
-            <Column field="isMeasured" header="Measures" style="min-width: 8rem">
+            <Column field="isMeasured" :header="t('filter.messageDb.measures')" style="min-width: 8rem">
                 <template #body="{ data }">
-                    <Tag :value="data.isMeasured ? `${data.measuredMessage?.length ?? 0} recorded` : 'None'" :severity="data.isMeasured ? 'success' : 'secondary'" />
+                    <Tag
+                        :value="data.isMeasured ? t('filter.messageDb.measuresRecorded', { count: data.measuredMessage?.length ?? 0 }) : t('filter.messageDb.measuresNone')"
+                        :severity="data.isMeasured ? 'success' : 'secondary'"
+                    />
                 </template>
             </Column>
 
-            <Column field="isDeleted" header="Deleted" style="min-width: 7rem">
+            <Column field="isDeleted" :header="t('filter.messageDb.deleted')" style="min-width: 7rem">
                 <template #body="{ data }">
-                    <Tag :value="data.isDeleted ? 'Yes' : 'No'" :severity="data.isDeleted ? 'danger' : 'secondary'" />
+                    <Tag :value="data.isDeleted ? t('filter.messageDb.yes') : t('filter.messageDb.no')" :severity="data.isDeleted ? 'danger' : 'secondary'" />
                 </template>
             </Column>
         </DataTable>
@@ -404,7 +448,7 @@ onMounted(async () => {
     <Dialog
         v-model:visible="detailDialog.visible"
         modal
-        header="Message details"
+        :header="t('filter.messageDb.detailTitle')"
         :style="{ width: '48rem' }"
         :breakpoints="{ '960px': '95vw' }"
     >
@@ -427,16 +471,16 @@ onMounted(async () => {
             </div>
 
             <div class="rounded-border border border-surface p-4 whitespace-pre-wrap break-words">
-                {{ detailDialog.message.cleanContent || detailDialog.message.content || '(no text content)' }}
+                {{ detailDialog.message.cleanContent || detailDialog.message.content || t('filter.messageDb.noContent') }}
             </div>
 
             <div>
-                <div class="font-semibold mb-2">Filter results</div>
+                <div class="font-semibold mb-2">{{ t('filter.messageDb.filterResults') }}</div>
                 <div class="grid grid-cols-12 gap-3">
                     <div class="col-span-12 md:col-span-4 rounded-border border border-surface p-3">
-                        <div class="font-medium mb-1">Word</div>
+                        <div class="font-medium mb-1">{{ t('filter.messageDb.word') }}</div>
                         <Tag
-                            :value="detailDialog.message.wordFilter?.isFiltered ? 'Triggered' : 'Passed'"
+                            :value="detailDialog.message.wordFilter?.isFiltered ? t('filter.messageDb.triggered') : t('filter.messageDb.passed')"
                             :severity="detailDialog.message.wordFilter?.isFiltered ? 'danger' : 'success'"
                         />
                         <div v-if="detailDialog.message.wordFilter?.isFiltered" class="text-sm text-muted-color mt-2">
@@ -445,30 +489,30 @@ onMounted(async () => {
                         </div>
                     </div>
                     <div class="col-span-12 md:col-span-4 rounded-border border border-surface p-3">
-                        <div class="font-medium mb-1">Duplicate</div>
+                        <div class="font-medium mb-1">{{ t('filter.messageDb.duplicate') }}</div>
                         <Tag
-                            :value="detailDialog.message.dupliFilter?.isFiltered ? 'Triggered' : 'Passed'"
+                            :value="detailDialog.message.dupliFilter?.isFiltered ? t('filter.messageDb.triggered') : t('filter.messageDb.passed')"
                             :severity="detailDialog.message.dupliFilter?.isFiltered ? 'warn' : 'success'"
                         />
                         <div v-if="detailDialog.message.dupliFilter?.isFiltered" class="text-sm text-muted-color mt-2">
-                            Recent count: {{ detailDialog.message.dupliFilter.messageCount }}
+                            {{ t('filter.messageDb.recentCount', { count: detailDialog.message.dupliFilter.messageCount }) }}
                         </div>
                     </div>
                     <div class="col-span-12 md:col-span-4 rounded-border border border-surface p-3">
-                        <div class="font-medium mb-1">Moderation</div>
+                        <div class="font-medium mb-1">{{ t('filter.messageDb.moderation') }}</div>
                         <Tag
-                            :value="detailDialog.message.moderationFilter?.isFiltered ? 'Triggered' : 'Passed'"
+                            :value="detailDialog.message.moderationFilter?.isFiltered ? t('filter.messageDb.triggered') : t('filter.messageDb.passed')"
                             :severity="detailDialog.message.moderationFilter?.isFiltered ? 'info' : 'success'"
                         />
                         <div v-if="detailDialog.message.moderationFilter?.isFiltered" class="text-sm text-muted-color mt-2">
-                            Flagged results: {{ detailDialog.message.moderationFilter.messageCount }}
+                            {{ t('filter.messageDb.flaggedResults', { count: detailDialog.message.moderationFilter.messageCount }) }}
                         </div>
                     </div>
                 </div>
             </div>
 
             <div>
-                <div class="font-semibold mb-2">Measure history</div>
+                <div class="font-semibold mb-2">{{ t('filter.messageDb.measureHistory') }}</div>
                 <div v-if="detailDialog.message.measuredMessage?.length" class="flex flex-col gap-3">
                     <div
                         v-for="(entry, index) in detailDialog.message.measuredMessage"
@@ -480,10 +524,10 @@ onMounted(async () => {
                             <span class="text-sm text-muted-color">{{ formatDate(entry.measuredAt) }}</span>
                         </div>
                         <div class="text-sm mt-2">{{ measureDetailText(entry) }}</div>
-                        <div class="text-sm text-muted-color mt-1">Operator: {{ operatorLabel(entry.operationUserId) }}</div>
+                        <div class="text-sm text-muted-color mt-1">{{ operatorLabel(entry.operationUserId) }}</div>
                     </div>
                 </div>
-                <Message v-else severity="secondary" :closable="false">No measures have been recorded for this message yet.</Message>
+                <Message v-else severity="secondary" :closable="false">{{ t('filter.messageDb.noMeasures') }}</Message>
             </div>
 
             <div v-if="detailDialog.message.isFiltered" class="flex flex-wrap gap-2">
@@ -498,26 +542,26 @@ onMounted(async () => {
     <Dialog
         v-model:visible="actionDialog.visible"
         modal
-        :header="actionDialog.type === 'delete' ? 'Delete message' : actionDialog.type === 'ban' ? 'Ban author' : actionDialog.type === 'kick' ? 'Kick author' : 'Give role'"
+        :header="actionDialogTitle"
         :style="{ width: '32rem' }"
         :closable="!submitting"
     >
         <div class="flex flex-col gap-4">
             <Message severity="info" :closable="false">
-                This action will be executed on Discord and recorded in the message DB.
+                {{ t('filter.messageDb.actionInfo') }}
             </Message>
 
             <div v-if="actionDialog.type === 'ban' || actionDialog.type === 'kick'" class="flex flex-col gap-2">
-                <label for="message-action-reason">Reason</label>
+                <label for="message-action-reason">{{ t('filter.messageDb.reason') }}</label>
                 <Textarea id="message-action-reason" v-model="actionDialog.reason" rows="4" class="w-full" :disabled="submitting" />
             </div>
 
             <div v-if="actionDialog.type === 'ban'" class="flex flex-col gap-2">
-                <label for="message-ban-delete-seconds">Delete recent messages</label>
+                <label for="message-ban-delete-seconds">{{ t('filter.messageDb.deleteRecentMessages') }}</label>
                 <Select
                     id="message-ban-delete-seconds"
                     v-model="actionDialog.deleteMessageSeconds"
-                    :options="DELETE_MESSAGE_SECONDS_OPTIONS"
+                    :options="deleteMessageSecondsOptions"
                     optionLabel="label"
                     optionValue="value"
                     class="w-full"
@@ -526,7 +570,7 @@ onMounted(async () => {
             </div>
 
             <div v-if="actionDialog.type === 'role'" class="flex flex-col gap-2">
-                <label for="message-action-role">Role</label>
+                <label for="message-action-role">{{ t('filter.common.role') }}</label>
                 <Select
                     id="message-action-role"
                     v-model="actionDialog.roleId"

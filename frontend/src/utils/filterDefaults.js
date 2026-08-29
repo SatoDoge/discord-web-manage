@@ -1,28 +1,17 @@
-export const CHANNEL_LIST_TYPE_OPTIONS = [
-    { label: 'Allow listed channels only', value: 'allow' },
-    { label: 'Block listed channels', value: 'block' }
-];
-
-export const DELETE_MESSAGE_SECONDS_OPTIONS = [
-    { label: 'Do not delete', value: 0 },
-    { label: 'Previous 24 hours', value: 24 * 60 * 60 },
-    { label: 'Previous 7 days', value: 7 * 24 * 60 * 60 }
-];
-
 export const MODERATION_CATEGORIES = [
-    { key: 'harassment', label: 'Harassment' },
-    { key: 'harassment/threatening', label: 'Harassment / Threatening' },
-    { key: 'sexual', label: 'Sexual' },
-    { key: 'hate', label: 'Hate' },
-    { key: 'hate/threatening', label: 'Hate / Threatening' },
-    { key: 'illicit', label: 'Illicit' },
-    { key: 'illicit/violent', label: 'Illicit / Violent' },
-    { key: 'self-harm/intent', label: 'Self-harm / Intent' },
-    { key: 'self-harm/instructions', label: 'Self-harm / Instructions' },
-    { key: 'self-harm', label: 'Self-harm' },
-    { key: 'sexual/minors', label: 'Sexual / Minors' },
-    { key: 'violence', label: 'Violence' },
-    { key: 'violence/graphic', label: 'Violence / Graphic' }
+    { key: 'harassment', i18nKey: 'harassment' },
+    { key: 'harassment/threatening', i18nKey: 'harassmentThreatening' },
+    { key: 'sexual', i18nKey: 'sexual' },
+    { key: 'hate', i18nKey: 'hate' },
+    { key: 'hate/threatening', i18nKey: 'hateThreatening' },
+    { key: 'illicit', i18nKey: 'illicit' },
+    { key: 'illicit/violent', i18nKey: 'illicitViolent' },
+    { key: 'self-harm/intent', i18nKey: 'selfHarmIntent' },
+    { key: 'self-harm/instructions', i18nKey: 'selfHarmInstructions' },
+    { key: 'self-harm', i18nKey: 'selfHarm' },
+    { key: 'sexual/minors', i18nKey: 'sexualMinors' },
+    { key: 'violence', i18nKey: 'violence' },
+    { key: 'violence/graphic', i18nKey: 'violenceGraphic' }
 ];
 
 export function createBaseFilterSettings() {

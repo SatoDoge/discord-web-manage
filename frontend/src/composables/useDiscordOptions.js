@@ -1,6 +1,8 @@
 import { computed, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 export function useDiscordOptions() {
+    const { t } = useI18n();
     const loading = ref(false);
     const members = ref([]);
     const channels = ref([]);
@@ -13,7 +15,7 @@ export function useDiscordOptions() {
     );
 
     const notificationChannelOptions = computed(() => [
-        { label: 'None', value: null },
+        { label: t('filter.common.none'), value: null },
         ...channelOptions.value
     ]);
 

@@ -1,6 +1,10 @@
 <script setup>
-import { CHANNEL_LIST_TYPE_OPTIONS, DELETE_MESSAGE_SECONDS_OPTIONS } from '@/utils/filterDefaults';
+import { useFilterOptions } from '@/composables/useFilterOptions';
 import { watch } from 'vue';
+import { useI18n } from 'vue-i18n';
+
+const { t } = useI18n();
+const { channelListTypeOptions, deleteMessageSecondsOptions } = useFilterOptions();
 
 const props = defineProps({
     form: {
@@ -38,17 +42,17 @@ watch(
 <template>
     <div class="flex flex-col gap-6">
         <div>
-            <div class="font-semibold text-lg mb-1">General</div>
-            <p class="text-muted-color m-0 text-sm">Enable the filter and choose which channels it applies to.</p>
+            <div class="font-semibold text-lg mb-1">{{ t('filter.common.general') }}</div>
+            <p class="text-muted-color m-0 text-sm">{{ t('filter.common.generalDescription') }}</p>
         </div>
 
         <div class="flex items-center gap-3">
             <Checkbox v-model="form.isEnabled" inputId="filter-enabled" binary :disabled="disabled" />
-            <label for="filter-enabled">Enable this filter</label>
+            <label for="filter-enabled">{{ t('filter.common.enabled') }}</label>
         </div>
 
         <div class="flex flex-col gap-2">
-            <label for="filter-channels">Target channels</label>
+            <label for="filter-channels">{{ t('filter.common.targetChannels') }}</label>
             <MultiSelect
                 id="filter-channels"
                 v-model="form.channelIdList"
@@ -56,7 +60,7 @@ watch(
                 optionLabel="label"
                 optionValue="value"
                 display="chip"
-                placeholder="Select channels"
+                :placeholder="t('filter.common.selectChannels')"
                 class="w-full"
                 :disabled="disabled"
                 filter
@@ -64,11 +68,11 @@ watch(
         </div>
 
         <div class="flex flex-col gap-2">
-            <label for="filter-channel-list-type">Channel list mode</label>
+            <label for="filter-channel-list-type">{{ t('filter.common.channelListMode') }}</label>
             <Select
                 id="filter-channel-list-type"
                 v-model="form.channelListType"
-                :options="CHANNEL_LIST_TYPE_OPTIONS"
+                :options="channelListTypeOptions"
                 optionLabel="label"
                 optionValue="value"
                 class="w-full"
@@ -77,7 +81,7 @@ watch(
         </div>
 
         <div class="flex flex-col gap-2">
-            <label for="filter-notification-channel">Notification channel</label>
+            <label for="filter-notification-channel">{{ t('filter.common.notificationChannel') }}</label>
             <Select
                 id="filter-notification-channel"
                 v-model="form.notificationChannelId"
@@ -85,7 +89,7 @@ watch(
                 optionLabel="label"
                 optionValue="value"
                 showClear
-                placeholder="Select a channel"
+                :placeholder="t('filter.common.selectChannel')"
                 class="w-full"
                 :disabled="disabled"
             />
@@ -94,31 +98,31 @@ watch(
         <Divider />
 
         <div>
-            <div class="font-semibold text-lg mb-1">Automatic measures</div>
+            <div class="font-semibold text-lg mb-1">{{ t('filter.common.automaticMeasures') }}</div>
             <p class="text-muted-color m-0 text-sm">
-                Actions applied when a message fails this filter. Lighter measures run first; ban takes priority over kick.
+                {{ t('filter.common.automaticMeasuresDescription') }}
             </p>
         </div>
 
         <div class="flex items-center gap-3">
             <Checkbox v-model="form.deleteMessage" inputId="filter-delete-message" binary :disabled="disabled" />
-            <label for="filter-delete-message">Delete message</label>
+            <label for="filter-delete-message">{{ t('filter.common.deleteMessage') }}</label>
         </div>
 
         <div class="flex flex-col gap-3 rounded-border border border-surface p-4">
             <div class="flex items-center gap-3">
                 <Checkbox v-model="form.giveRole" inputId="filter-give-role" binary :disabled="disabled" />
-                <label for="filter-give-role">Give role</label>
+                <label for="filter-give-role">{{ t('filter.common.giveRole') }}</label>
             </div>
             <div v-if="form.giveRole" class="flex flex-col gap-2">
-                <label for="filter-role-id">Role</label>
+                <label for="filter-role-id">{{ t('filter.common.role') }}</label>
                 <Select
                     id="filter-role-id"
                     v-model="form.roleId"
                     :options="roleOptions"
                     optionLabel="label"
                     optionValue="value"
-                    placeholder="Select a role"
+                    :placeholder="t('filter.common.selectRole')"
                     class="w-full"
                     :disabled="disabled"
                     filter
@@ -144,25 +148,25 @@ watch(
                     binary
                     :disabled="disabled || form.banUser"
                 />
-                <label for="filter-kick-user">Kick user</label>
+                <label for="filter-kick-user">{{ t('filter.common.kickUser') }}</label>
             </div>
             <Message v-if="form.banUser" severity="info" :closable="false">
-                Kick is ignored when ban is enabled.
+                {{ t('filter.common.kickIgnoredByBan') }}
             </Message>
             <template v-if="form.kickUser && !form.banUser">
                 <div class="flex flex-col gap-2">
-                    <label for="filter-kick-reason">Kick reason</label>
+                    <label for="filter-kick-reason">{{ t('filter.common.kickReason') }}</label>
                     <Textarea
                         id="filter-kick-reason"
                         v-model="form.kickReason"
                         rows="3"
                         class="w-full"
                         :disabled="disabled"
-                        placeholder="Reason shown in the audit log"
+                        :placeholder="t('filter.common.kickReasonPlaceholder')"
                     />
                 </div>
                 <div class="flex flex-col gap-2">
-                    <label for="filter-kick-seconds">Kick seconds</label>
+                    <label for="filter-kick-seconds">{{ t('filter.common.kickSeconds') }}</label>
                     <InputNumber
                         id="filter-kick-seconds"
                         v-model="form.kickSeconds"
@@ -178,26 +182,26 @@ watch(
         <div class="flex flex-col gap-3 rounded-border border border-surface p-4">
             <div class="flex items-center gap-3">
                 <Checkbox v-model="form.banUser" inputId="filter-ban-user" binary :disabled="disabled" />
-                <label for="filter-ban-user">Ban user</label>
+                <label for="filter-ban-user">{{ t('filter.common.banUser') }}</label>
             </div>
             <template v-if="form.banUser">
                 <div class="flex flex-col gap-2">
-                    <label for="filter-ban-reason">Ban reason</label>
+                    <label for="filter-ban-reason">{{ t('filter.common.banReason') }}</label>
                     <Textarea
                         id="filter-ban-reason"
                         v-model="form.banReason"
                         rows="3"
                         class="w-full"
                         :disabled="disabled"
-                        placeholder="Reason shown in the audit log"
+                        :placeholder="t('filter.common.banReasonPlaceholder')"
                     />
                 </div>
                 <div class="flex flex-col gap-2">
-                    <label for="filter-delete-message-seconds">Delete recent messages on ban</label>
+                    <label for="filter-delete-message-seconds">{{ t('filter.common.deleteRecentOnBan') }}</label>
                     <Select
                         id="filter-delete-message-seconds"
                         v-model="form.deleteMessageSeconds"
-                        :options="DELETE_MESSAGE_SECONDS_OPTIONS"
+                        :options="deleteMessageSecondsOptions"
                         optionLabel="label"
                         optionValue="value"
                         class="w-full"

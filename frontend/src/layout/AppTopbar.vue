@@ -1,14 +1,23 @@
 <script setup>
 import { useLayout } from '@/layout/composables/layout';
+import { getLocale, localeOptions, setLocale } from '@/i18n';
 import AppConfigurator from './AppConfigurator.vue';
 import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
+import { useI18n } from 'vue-i18n';
 
 const { toggleMenu, toggleDarkMode, isDarkTheme } = useLayout();
 const router = useRouter();
+const { t } = useI18n();
 
 /** @type {import('vue').Ref<{ id: string, username: string, displayName: string, icon: string } | null>} */
 const currentUser = ref(null);
+const selectedLocale = ref(getLocale());
+
+function onLocaleChange(locale) {
+    setLocale(locale);
+    selectedLocale.value = locale;
+}
 
 onMounted(async () => {
     try {
@@ -40,6 +49,17 @@ onMounted(async () => {
 
         <div class="layout-topbar-actions">
             <div class="layout-config-menu">
+                <div class="locale-select hidden md:block">
+                    <Select
+                        v-model="selectedLocale"
+                        :options="localeOptions"
+                        optionLabel="label"
+                        optionValue="value"
+                        :aria-label="t('topbar.language')"
+                        class="locale-select-input"
+                        @update:model-value="onLocaleChange"
+                    />
+                </div>
                 <button type="button" class="layout-topbar-action" @click="toggleDarkMode">
                     <i :class="['pi', { 'pi-moon': isDarkTheme, 'pi-sun': !isDarkTheme }]"></i>
                 </button>
@@ -64,16 +84,25 @@ onMounted(async () => {
 
             <div class="layout-topbar-menu hidden lg:block">
                 <div class="layout-topbar-menu-content">
-                    <!-- メッセージボタン -->
+                    <div class="locale-select-mobile md:hidden">
+                        <Select
+                            v-model="selectedLocale"
+                            :options="localeOptions"
+                            optionLabel="label"
+                            optionValue="value"
+                            :aria-label="t('topbar.language')"
+                            class="locale-select-input"
+                            @update:model-value="onLocaleChange"
+                        />
+                    </div>
                     <button type="button" class="layout-topbar-action">
                         <i class="pi pi-inbox"></i>
-                        <span>Messages</span>
+                        <span>{{ t('topbar.messages') }}</span>
                     </button>
-                    <!-- アカウントボタン -->
                     <button type="button" class="layout-topbar-action profile-action" :class="{ 'is-authenticated': !!currentUser }">
                         <img v-if="currentUser?.icon" class="profile-avatar" :src="currentUser.icon" :alt="currentUser.displayName" />
                         <i v-else class="pi pi-user"></i>
-                        <span>{{ currentUser?.displayName ?? 'Profile' }}</span>
+                        <span>{{ currentUser?.displayName ?? t('topbar.profile') }}</span>
                     </button>
                 </div>
             </div>
@@ -100,5 +129,22 @@ onMounted(async () => {
     height: 1.75rem;
     border-radius: 50%;
     object-fit: cover;
+}
+
+.locale-select {
+    display: flex;
+    align-items: center;
+}
+
+.locale-select-input {
+    min-width: 7.5rem;
+}
+
+.locale-select-mobile {
+    padding: 0.5rem 0.75rem;
+}
+
+.locale-select-mobile .locale-select-input {
+    width: 100%;
 }
 </style>
