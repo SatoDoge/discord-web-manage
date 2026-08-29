@@ -42,6 +42,31 @@ const model = ref([
                 to: '/manage/messages'
             }
         ]
+    },
+    {
+        label: 'Filter',
+        items: [
+            {
+                label: 'Word Filter',
+                icon: 'pi pi-fw pi-ban',
+                to: '/filter/word'
+            },
+            {
+                label: 'Duplicate Filter',
+                icon: 'pi pi-fw pi-clone',
+                to: '/filter/dupli'
+            },
+            {
+                label: 'Moderation Filter',
+                icon: 'pi pi-fw pi-shield',
+                to: '/filter/moderation'
+            },
+            {
+                label: 'Message DB',
+                icon: 'pi pi-fw pi-database',
+                to: '/filter/messages'
+            }
+        ]
     }
 ]);
 </script>

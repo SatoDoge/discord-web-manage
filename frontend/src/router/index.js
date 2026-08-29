@@ -32,6 +32,26 @@ const router = createRouter({
                     path: '/manage/messages',
                     name: 'messageList',
                     component: () => import('@/views/pages/manage/MessageList.vue')
+                },
+                {
+                    path: '/filter/word',
+                    name: 'wordFilter',
+                    component: () => import('@/views/pages/filter/WordFilter.vue')
+                },
+                {
+                    path: '/filter/dupli',
+                    name: 'dupliFilter',
+                    component: () => import('@/views/pages/filter/DupliFilter.vue')
+                },
+                {
+                    path: '/filter/moderation',
+                    name: 'moderationFilter',
+                    component: () => import('@/views/pages/filter/ModerationFilter.vue')
+                },
+                {
+                    path: '/filter/messages',
+                    name: 'messageDb',
+                    component: () => import('@/views/pages/filter/MessageDb.vue')
                 }
             ]
         },
