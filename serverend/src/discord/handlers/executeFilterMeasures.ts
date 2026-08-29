@@ -3,6 +3,10 @@ import { deleteGuildMessage } from "#server/discord/deleteMessage.js";
 import { giveRoleToMember } from "#server/discord/giveRoleMember.js";
 import { kickGuildMember } from "#server/discord/kickMember.js";
 import { getDiscordClient } from "#server/discord.js";
+import {
+    createMeasuredEntry,
+    emptyMeasuredDetail,
+} from "#server/services/message/measuredMessageRecord.js";
 import type { MeasuredMessage, StoredGuildMessage } from "#server/types/messageData.js";
 import type { Settings } from "#server/types/messageFilterSettings.js";
 import { Logger } from "#server/utils/logger.js";
@@ -115,26 +119,6 @@ function hasPlannedMeasures(measures: PlannedMeasures): boolean {
     );
 }
 
-function createMeasuredEntry(
-    operationUserId: string,
-    entry: Omit<MeasuredMessage, "operationUserId" | "measuredAt">,
-): MeasuredMessage {
-    return {
-        ...entry,
-        operationUserId,
-        measuredAt: new Date().toISOString(),
-    };
-}
-
-function emptyDetail(): Omit<MeasuredMessage, "command" | "operationUserId" | "measuredAt"> {
-    return {
-        banDetail: null,
-        kickDetail: null,
-        roleDetail: null,
-        deleteDetail: null,
-    };
-}
-
 export async function executeFilterMeasures(
     stored: StoredGuildMessage,
     triggeredSettings: Settings[],
@@ -166,7 +150,7 @@ export async function executeFilterMeasures(
         measuredMessage.push(
             createMeasuredEntry(operationUserId, {
                 command: "delete",
-                ...emptyDetail(),
+                ...emptyMeasuredDetail(),
                 deleteDetail: { isDeleted },
             }),
         );
@@ -183,7 +167,7 @@ export async function executeFilterMeasures(
             measuredMessage.push(
                 createMeasuredEntry(operationUserId, {
                     command: "role",
-                    ...emptyDetail(),
+                    ...emptyMeasuredDetail(),
                     roleDetail: { roleId },
                 }),
             );
@@ -194,7 +178,7 @@ export async function executeFilterMeasures(
             measuredMessage.push(
                 createMeasuredEntry(operationUserId, {
                     command: "none",
-                    ...emptyDetail(),
+                    ...emptyMeasuredDetail(),
                     roleDetail: { roleId },
                 }),
             );
@@ -212,7 +196,7 @@ export async function executeFilterMeasures(
             measuredMessage.push(
                 createMeasuredEntry(operationUserId, {
                     command: "ban",
-                    ...emptyDetail(),
+                    ...emptyMeasuredDetail(),
                     banDetail: {
                         reason: measures.ban.reason,
                         deleteMessageSeconds: measures.ban.deleteMessageSeconds,
@@ -224,7 +208,7 @@ export async function executeFilterMeasures(
             measuredMessage.push(
                 createMeasuredEntry(operationUserId, {
                     command: "none",
-                    ...emptyDetail(),
+                    ...emptyMeasuredDetail(),
                     banDetail: {
                         reason: measures.ban.reason,
                         deleteMessageSeconds: measures.ban.deleteMessageSeconds,
@@ -242,7 +226,7 @@ export async function executeFilterMeasures(
             measuredMessage.push(
                 createMeasuredEntry(operationUserId, {
                     command: "kick",
-                    ...emptyDetail(),
+                    ...emptyMeasuredDetail(),
                     kickDetail: {
                         reason: measures.kick.reason,
                         kickSeconds: measures.kick.kickSeconds,
@@ -254,7 +238,7 @@ export async function executeFilterMeasures(
             measuredMessage.push(
                 createMeasuredEntry(operationUserId, {
                     command: "none",
-                    ...emptyDetail(),
+                    ...emptyMeasuredDetail(),
                     kickDetail: {
                         reason: measures.kick.reason,
                         kickSeconds: measures.kick.kickSeconds,
