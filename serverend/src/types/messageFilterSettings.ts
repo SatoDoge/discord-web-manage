@@ -11,6 +11,7 @@ export type Settings = {
     kickSeconds : number | null;
     giveRole:boolean;
     roleId: string | null;
+    deleteMessage: boolean;
 }
 
 export type WordFilterSettings = Settings & {
@@ -66,6 +67,7 @@ export const messageFilterDefaultSettings: MesssegFilterSettings = {
         roleId: null,
         wordFilterList: [],
         urlFilterList: [],
+        deleteMessage: false,
     },
     dupliFilterSettings: {
         isEnabled: false,
@@ -84,6 +86,7 @@ export const messageFilterDefaultSettings: MesssegFilterSettings = {
         duplicateMessagePer10Seconds: null,
         duplicateMessagePerMinutes: null,
         isOnlySameContentMessage: true,
+        deleteMessage: false,
     },
     moderationFilterSettings: {
         isEnabled: false,
@@ -114,5 +117,6 @@ export const messageFilterDefaultSettings: MesssegFilterSettings = {
         'violence/graphic': null,
         isFilterAppliedToContent: false,
         isFilterAppliedToImage: false,
+        deleteMessage: false,
     }
 }
