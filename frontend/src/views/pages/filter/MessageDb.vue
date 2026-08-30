@@ -2,6 +2,7 @@
 import { useDiscordOptions } from '@/composables/useDiscordOptions';
 import { useFilterOptions } from '@/composables/useFilterOptions';
 import { apiFetch } from '@/utils/api';
+import { MODERATION_CATEGORIES } from '@/utils/filterDefaults';
 import { FilterMatchMode } from '@primevue/core/api';
 import { useToast } from 'primevue/usetoast';
 import { computed, onMounted, reactive, ref } from 'vue';
@@ -180,6 +181,68 @@ function operatorLabel(userId) {
     return t('filter.messageDb.operator', {
         name: memberNameById.value.get(userId) ?? userId
     });
+}
+
+function wordFilterWords(message) {
+    const words = message.wordFilter?.blockedWords;
+    if (words?.length) {
+        return words;
+    }
+    return message.wordFilter?.filteredWords ?? [];
+}
+
+function wordFilterUrlPatterns(message) {
+    return message.wordFilter?.blockedUrlPatterns ?? [];
+}
+
+function wordFilterMatchedUrls(message) {
+    return message.wordFilter?.matchedUrls ?? [];
+}
+
+function dupliWindowLabel(window) {
+    switch (window) {
+        case '1s':
+            return t('filter.messageDb.dupliWindow1s');
+        case '10s':
+            return t('filter.messageDb.dupliWindow10s');
+        case '1m':
+            return t('filter.messageDb.dupliWindow1m');
+        default:
+            return window;
+    }
+}
+
+function moderationCategoryLabel(categoryKey) {
+    const category = MODERATION_CATEGORIES.find((entry) => entry.key === categoryKey);
+    if (!category) {
+        return categoryKey;
+    }
+    return t(`filter.moderation.categories.${category.i18nKey}`);
+}
+
+function moderationScoreRows(result) {
+    if (!result?.category_scores) {
+        return [];
+    }
+
+    return MODERATION_CATEGORIES.map(({ key }) => ({
+        key,
+        label: moderationCategoryLabel(key),
+        score: result.category_scores[key] ?? 0,
+        flagged: result.categories?.[key] ?? false
+    })).sort((a, b) => b.score - a.score);
+}
+
+function formatModerationScore(score) {
+    return `${(score * 100).toFixed(1)}%`;
+}
+
+function moderationContentResult(message) {
+    return message.multipleMessageFilter?.content ?? null;
+}
+
+function moderationImageResults(message) {
+    return message.multipleMessageFilter?.image ?? [];
 }
 
 async function loadMessages() {
@@ -449,7 +512,7 @@ onMounted(async () => {
         v-model:visible="detailDialog.visible"
         modal
         :header="t('filter.messageDb.detailTitle')"
-        :style="{ width: '48rem' }"
+        :style="{ width: '56rem' }"
         :breakpoints="{ '960px': '95vw' }"
     >
         <div v-if="detailDialog.message" class="flex flex-col gap-5">
@@ -476,37 +539,210 @@ onMounted(async () => {
 
             <div>
                 <div class="font-semibold mb-2">{{ t('filter.messageDb.filterResults') }}</div>
-                <div class="grid grid-cols-12 gap-3">
-                    <div class="col-span-12 md:col-span-4 rounded-border border border-surface p-3">
-                        <div class="font-medium mb-1">{{ t('filter.messageDb.word') }}</div>
-                        <Tag
-                            :value="detailDialog.message.wordFilter?.isFiltered ? t('filter.messageDb.triggered') : t('filter.messageDb.passed')"
-                            :severity="detailDialog.message.wordFilter?.isFiltered ? 'danger' : 'success'"
-                        />
-                        <div v-if="detailDialog.message.wordFilter?.isFiltered" class="text-sm text-muted-color mt-2">
-                            {{ detailDialog.message.wordFilter.filteredWords.join(', ') || '—' }}
-                            ({{ detailDialog.message.wordFilter.filteredWordCount }})
+                <div class="flex flex-col gap-4">
+                    <div class="rounded-border border border-surface p-4">
+                        <div class="flex flex-wrap items-center gap-2 mb-3">
+                            <div class="font-medium">{{ t('filter.messageDb.word') }}</div>
+                            <Tag
+                                :value="detailDialog.message.wordFilter?.isFiltered ? t('filter.messageDb.triggered') : t('filter.messageDb.passed')"
+                                :severity="detailDialog.message.wordFilter?.isFiltered ? 'danger' : 'success'"
+                            />
+                        </div>
+                        <template v-if="detailDialog.message.wordFilter?.isFiltered">
+                            <div v-if="wordFilterWords(detailDialog.message).length" class="mb-3">
+                                <div class="text-sm font-medium mb-1">{{ t('filter.messageDb.blockedWords') }}</div>
+                                <div class="flex flex-wrap gap-1">
+                                    <Tag
+                                        v-for="word in wordFilterWords(detailDialog.message)"
+                                        :key="`word-${word}`"
+                                        :value="word"
+                                        severity="danger"
+                                    />
+                                </div>
+                            </div>
+                            <div v-if="wordFilterUrlPatterns(detailDialog.message).length" class="mb-3">
+                                <div class="text-sm font-medium mb-1">{{ t('filter.messageDb.blockedUrlPatterns') }}</div>
+                                <div class="flex flex-wrap gap-1">
+                                    <Tag
+                                        v-for="pattern in wordFilterUrlPatterns(detailDialog.message)"
+                                        :key="`pattern-${pattern}`"
+                                        :value="pattern"
+                                        severity="warn"
+                                    />
+                                </div>
+                            </div>
+                            <div v-if="wordFilterMatchedUrls(detailDialog.message).length" class="mb-3">
+                                <div class="text-sm font-medium mb-1">{{ t('filter.messageDb.matchedUrls') }}</div>
+                                <ul class="detail-list m-0 pl-4">
+                                    <li v-for="url in wordFilterMatchedUrls(detailDialog.message)" :key="url" class="break-all">
+                                        <a :href="url" target="_blank" rel="noopener noreferrer" class="text-primary">{{ url }}</a>
+                                    </li>
+                                </ul>
+                            </div>
+                            <div class="text-sm text-muted-color">
+                                {{ t('filter.messageDb.matchCount', { count: detailDialog.message.wordFilter.filteredWordCount }) }}
+                            </div>
+                        </template>
+                        <div v-else class="text-sm text-muted-color">{{ t('filter.messageDb.noWordMatches') }}</div>
+                    </div>
+
+                    <div class="rounded-border border border-surface p-4">
+                        <div class="flex flex-wrap items-center gap-2 mb-3">
+                            <div class="font-medium">{{ t('filter.messageDb.duplicate') }}</div>
+                            <Tag
+                                :value="detailDialog.message.dupliFilter?.isFiltered ? t('filter.messageDb.triggered') : t('filter.messageDb.passed')"
+                                :severity="detailDialog.message.dupliFilter?.isFiltered ? 'warn' : 'success'"
+                            />
+                        </div>
+                        <div v-if="detailDialog.message.dupliFilter?.onlySameContent != null" class="text-sm text-muted-color mb-3">
+                            {{
+                                detailDialog.message.dupliFilter?.onlySameContent
+                                    ? t('filter.messageDb.dupliSameContentOnly')
+                                    : t('filter.messageDb.dupliAllMessages')
+                            }}
+                        </div>
+                        <div v-if="detailDialog.message.dupliFilter?.windows?.length" class="overflow-x-auto">
+                            <table class="detail-table w-full text-sm">
+                                <thead>
+                                    <tr>
+                                        <th>{{ t('filter.messageDb.dupliWindow') }}</th>
+                                        <th>{{ t('filter.messageDb.dupliCount') }}</th>
+                                        <th>{{ t('filter.messageDb.dupliLimit') }}</th>
+                                        <th>{{ t('filter.messageDb.dupliStatus') }}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr
+                                        v-for="entry in detailDialog.message.dupliFilter.windows"
+                                        :key="entry.window"
+                                        :class="{ 'row-exceeded': entry.exceeded }"
+                                    >
+                                        <td>{{ dupliWindowLabel(entry.window) }}</td>
+                                        <td>{{ entry.count }}</td>
+                                        <td>{{ entry.limit }}</td>
+                                        <td>
+                                            <Tag
+                                                :value="entry.exceeded ? t('filter.messageDb.dupliExceeded') : t('filter.messageDb.dupliWithinLimit')"
+                                                :severity="entry.exceeded ? 'danger' : 'success'"
+                                            />
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div v-else class="text-sm text-muted-color">
+                            {{ t('filter.messageDb.dupliNoWindows') }}
                         </div>
                     </div>
-                    <div class="col-span-12 md:col-span-4 rounded-border border border-surface p-3">
-                        <div class="font-medium mb-1">{{ t('filter.messageDb.duplicate') }}</div>
-                        <Tag
-                            :value="detailDialog.message.dupliFilter?.isFiltered ? t('filter.messageDb.triggered') : t('filter.messageDb.passed')"
-                            :severity="detailDialog.message.dupliFilter?.isFiltered ? 'warn' : 'success'"
-                        />
-                        <div v-if="detailDialog.message.dupliFilter?.isFiltered" class="text-sm text-muted-color mt-2">
-                            {{ t('filter.messageDb.recentCount', { count: detailDialog.message.dupliFilter.messageCount }) }}
+
+                    <div class="rounded-border border border-surface p-4">
+                        <div class="flex flex-wrap items-center gap-2 mb-3">
+                            <div class="font-medium">{{ t('filter.messageDb.moderation') }}</div>
+                            <Tag
+                                :value="detailDialog.message.moderationFilter?.isFiltered ? t('filter.messageDb.triggered') : t('filter.messageDb.passed')"
+                                :severity="detailDialog.message.moderationFilter?.isFiltered ? 'info' : 'success'"
+                            />
                         </div>
-                    </div>
-                    <div class="col-span-12 md:col-span-4 rounded-border border border-surface p-3">
-                        <div class="font-medium mb-1">{{ t('filter.messageDb.moderation') }}</div>
-                        <Tag
-                            :value="detailDialog.message.moderationFilter?.isFiltered ? t('filter.messageDb.triggered') : t('filter.messageDb.passed')"
-                            :severity="detailDialog.message.moderationFilter?.isFiltered ? 'info' : 'success'"
-                        />
-                        <div v-if="detailDialog.message.moderationFilter?.isFiltered" class="text-sm text-muted-color mt-2">
-                            {{ t('filter.messageDb.flaggedResults', { count: detailDialog.message.moderationFilter.messageCount }) }}
+
+                        <div v-if="moderationContentResult(detailDialog.message)" class="mb-4">
+                            <div class="text-sm font-medium mb-2">{{ t('filter.messageDb.moderationContent') }}</div>
+                            <div class="flex flex-wrap items-center gap-2 mb-2">
+                                <Tag
+                                    :value="moderationContentResult(detailDialog.message).flagged ? t('filter.messageDb.moderationFlagged') : t('filter.messageDb.moderationNotFlagged')"
+                                    :severity="moderationContentResult(detailDialog.message).flagged ? 'danger' : 'success'"
+                                />
+                            </div>
+                            <div class="overflow-x-auto">
+                                <table class="detail-table w-full text-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>{{ t('filter.messageDb.moderationCategory') }}</th>
+                                            <th>{{ t('filter.messageDb.moderationScore') }}</th>
+                                            <th>{{ t('filter.messageDb.moderationFlag') }}</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr
+                                            v-for="row in moderationScoreRows(moderationContentResult(detailDialog.message))"
+                                            :key="`content-${row.key}`"
+                                            :class="{ 'row-exceeded': row.flagged }"
+                                        >
+                                            <td>{{ row.label }}</td>
+                                            <td>{{ formatModerationScore(row.score) }}</td>
+                                            <td>
+                                                <Tag
+                                                    :value="row.flagged ? t('common.yes') : t('common.no')"
+                                                    :severity="row.flagged ? 'danger' : 'secondary'"
+                                                />
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
+                        <div v-else class="text-sm text-muted-color mb-4">{{ t('filter.messageDb.moderationNoContent') }}</div>
+
+                        <div v-if="moderationImageResults(detailDialog.message).length">
+                            <div class="text-sm font-medium mb-2">{{ t('filter.messageDb.moderationImages') }}</div>
+                            <div class="flex flex-col gap-3">
+                                <div
+                                    v-for="(imageEntry, index) in moderationImageResults(detailDialog.message)"
+                                    :key="`${imageEntry.url}-${index}`"
+                                    class="rounded-border border border-surface p-3"
+                                >
+                                    <div class="flex flex-wrap gap-3 items-start mb-2">
+                                        <img
+                                            v-if="imageEntry.url"
+                                            :src="imageEntry.url"
+                                            :alt="t('filter.messageDb.moderationImageAlt')"
+                                            class="moderation-thumb"
+                                        />
+                                        <div class="min-w-0 flex-1">
+                                            <a :href="imageEntry.url" target="_blank" rel="noopener noreferrer" class="text-primary text-sm break-all">
+                                                {{ imageEntry.url }}
+                                            </a>
+                                            <div v-if="!imageEntry.moderation" class="text-sm text-muted-color mt-1">
+                                                {{ t('filter.messageDb.moderationUnavailable') }}
+                                            </div>
+                                            <div v-else class="mt-2">
+                                                <Tag
+                                                    :value="imageEntry.moderation.flagged ? t('filter.messageDb.moderationFlagged') : t('filter.messageDb.moderationNotFlagged')"
+                                                    :severity="imageEntry.moderation.flagged ? 'danger' : 'success'"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div v-if="imageEntry.moderation" class="overflow-x-auto">
+                                        <table class="detail-table w-full text-sm">
+                                            <thead>
+                                                <tr>
+                                                    <th>{{ t('filter.messageDb.moderationCategory') }}</th>
+                                                    <th>{{ t('filter.messageDb.moderationScore') }}</th>
+                                                    <th>{{ t('filter.messageDb.moderationFlag') }}</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr
+                                                    v-for="row in moderationScoreRows(imageEntry.moderation)"
+                                                    :key="`image-${index}-${row.key}`"
+                                                    :class="{ 'row-exceeded': row.flagged }"
+                                                >
+                                                    <td>{{ row.label }}</td>
+                                                    <td>{{ formatModerationScore(row.score) }}</td>
+                                                    <td>
+                                                        <Tag
+                                                            :value="row.flagged ? t('common.yes') : t('common.no')"
+                                                            :severity="row.flagged ? 'danger' : 'secondary'"
+                                                        />
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div v-else class="text-sm text-muted-color">{{ t('filter.messageDb.moderationNoImages') }}</div>
                     </div>
                 </div>
             </div>
@@ -614,5 +850,37 @@ onMounted(async () => {
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
+}
+
+.detail-table {
+    border-collapse: collapse;
+}
+
+.detail-table th,
+.detail-table td {
+    border-bottom: 1px solid var(--p-content-border-color);
+    padding: 0.5rem 0.75rem;
+    text-align: left;
+}
+
+.detail-table th {
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.detail-table .row-exceeded {
+    background: color-mix(in srgb, var(--p-red-500) 8%, transparent);
+}
+
+.detail-list li + li {
+    margin-top: 0.25rem;
+}
+
+.moderation-thumb {
+    width: 4.5rem;
+    height: 4.5rem;
+    object-fit: cover;
+    border-radius: 0.375rem;
+    flex-shrink: 0;
 }
 </style>

@@ -102,11 +102,23 @@ export type wordFilter = {
     isFiltered: boolean;
     filteredWords: string[];
     filteredWordCount: number;
+    blockedWords: string[];
+    blockedUrlPatterns: string[];
+    matchedUrls: string[];
+};
+
+export type dupliFilterWindow = {
+    window: "1s" | "10s" | "1m";
+    count: number;
+    limit: number;
+    exceeded: boolean;
 };
 
 export type dupliFilter = {
     isFiltered: boolean;
     messageCount: number;
+    onlySameContent: boolean;
+    windows: dupliFilterWindow[];
 };
 
 export type moderationFilter = {

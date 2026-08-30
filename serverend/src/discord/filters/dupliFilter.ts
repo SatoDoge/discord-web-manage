@@ -1,6 +1,6 @@
 import { getMessageList } from "#server/stores/messageDataStore.js";
 import { getDupliFilterSettings } from "#server/stores/messageFilterSettingsStore.js";
-import type { StoredGuildMessage } from "#server/types/messageData.js";
+import type { dupliFilterWindow, StoredGuildMessage } from "#server/types/messageData.js";
 import type { DupliFilterSettings } from "#server/types/messageFilterSettings.js";
 
 const ONE_SECOND_MS = 1_000;
@@ -60,26 +60,38 @@ export function applyDupliFilter(
     const userMessages = getUserMessages(pastMessages, message);
     const onlySameContent = dupliFilterSettings.isOnlySameContentMessage;
 
-    const windowChecks: { count: number; limit: number | null }[] = [];
+    const windowChecks: dupliFilterWindow[] = [];
 
     if (dupliFilterSettings.duplicateMessagePerSeconds !== null) {
+        const count = countMessagesInWindow(userMessages, message, ONE_SECOND_MS, onlySameContent);
+        const limit = dupliFilterSettings.duplicateMessagePerSeconds;
         windowChecks.push({
-            count: countMessagesInWindow(userMessages, message, ONE_SECOND_MS, onlySameContent),
-            limit: dupliFilterSettings.duplicateMessagePerSeconds,
+            window: "1s",
+            count,
+            limit,
+            exceeded: exceedsThreshold(count, limit),
         });
     }
 
     if (dupliFilterSettings.duplicateMessagePer10Seconds !== null) {
+        const count = countMessagesInWindow(userMessages, message, TEN_SECONDS_MS, onlySameContent);
+        const limit = dupliFilterSettings.duplicateMessagePer10Seconds;
         windowChecks.push({
-            count: countMessagesInWindow(userMessages, message, TEN_SECONDS_MS, onlySameContent),
-            limit: dupliFilterSettings.duplicateMessagePer10Seconds,
+            window: "10s",
+            count,
+            limit,
+            exceeded: exceedsThreshold(count, limit),
         });
     }
 
     if (dupliFilterSettings.duplicateMessagePerMinutes !== null) {
+        const count = countMessagesInWindow(userMessages, message, ONE_MINUTE_MS, onlySameContent);
+        const limit = dupliFilterSettings.duplicateMessagePerMinutes;
         windowChecks.push({
-            count: countMessagesInWindow(userMessages, message, ONE_MINUTE_MS, onlySameContent),
-            limit: dupliFilterSettings.duplicateMessagePerMinutes,
+            window: "1m",
+            count,
+            limit,
+            exceeded: exceedsThreshold(count, limit),
         });
     }
 
@@ -87,18 +99,22 @@ export function applyDupliFilter(
         message.dupliFilter = {
             isFiltered: false,
             messageCount: 0,
+            onlySameContent,
+            windows: [],
         };
         return;
     }
 
-    const isFiltered = windowChecks.some(({ count, limit }) => exceedsThreshold(count, limit));
+    const isFiltered = windowChecks.some(({ exceeded }) => exceeded);
     const messageCount = isFiltered
-        ? Math.max(...windowChecks.filter(({ count, limit }) => exceedsThreshold(count, limit)).map(({ count }) => count))
+        ? Math.max(...windowChecks.filter(({ exceeded }) => exceeded).map(({ count }) => count))
         : Math.max(...windowChecks.map(({ count }) => count));
 
     message.dupliFilter = {
         isFiltered,
         messageCount,
+        onlySameContent,
+        windows: windowChecks,
     };
 }
 
