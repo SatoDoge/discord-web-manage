@@ -12,7 +12,9 @@
     "wordFilter": "Word Filter",
     "dupliFilter": "Duplicate Filter",
     "moderationFilter": "Moderation Filter",
-    "messageDb": "Message DB"
+    "messageDb": "Message DB",
+    "settings": "Settings",
+    "adminUsers": "Admin Users"
   },
   "topbar": {
     "language": "Language",
@@ -156,6 +158,35 @@
       "sortOrder": "Sort order",
       "pinned": "Pinned",
       "includeNsfw": "Include age-restricted channels"
+    }
+  },
+  "setting": {
+    "adminUsers": {
+      "title": "Admin Users",
+      "description": "Add or remove users who can sign in to this web app. Users must be guild members synced by the bot.",
+      "addTitle": "Add admin",
+      "searchLabel": "Search members",
+      "searchPlaceholder": "Search by name or user ID",
+      "searchHint": "Pick a suggestion or enter a Discord user ID directly.",
+      "listTitle": "Current admins",
+      "searchTablePlaceholder": "Search admins",
+      "user": "User",
+      "actions": "Actions",
+      "empty": "No admin users registered.",
+      "loading": "Loading admins. Please wait.",
+      "loadFailed": "Could not fetch the admin user list.",
+      "selectMember": "Select a member to add.",
+      "alreadyAdmin": "This user is already an admin.",
+      "addSuccess": "Admin user added.",
+      "addFailed": "Could not add the admin user.",
+      "memberNotFound": "Guild member not found. Only members synced by the bot can be added.",
+      "invalidUserId": "Invalid user ID format.",
+      "removeDialogTitle": "Remove admin",
+      "removeDialogWarning": "Remove admin access for {name}.",
+      "removeSelfWarning": "Removing yourself may prevent you from signing in again.",
+      "removeSuccess": "Admin user removed.",
+      "removeFailed": "Could not remove the admin user.",
+      "adminNotFound": "Admin user not found."
     }
   },
   "filter": {

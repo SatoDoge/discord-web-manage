@@ -52,6 +52,11 @@ const router = createRouter({
                     path: '/filter/messages',
                     name: 'messageDb',
                     component: () => import('@/views/pages/filter/MessageDb.vue')
+                },
+                {
+                    path: '/setting/admin-users',
+                    name: 'adminUsers',
+                    component: () => import('@/views/pages/setting/AdminUser.vue')
                 }
             ]
         },

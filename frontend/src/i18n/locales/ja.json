@@ -12,7 +12,9 @@
     "wordFilter": "ワードフィルター",
     "dupliFilter": "重複フィルター",
     "moderationFilter": "モデレーションフィルター",
-    "messageDb": "メッセージDB"
+    "messageDb": "メッセージDB",
+    "settings": "設定",
+    "adminUsers": "管理者ユーザー"
   },
   "topbar": {
     "language": "言語",
@@ -156,6 +158,35 @@
       "sortOrder": "順序",
       "pinned": "ピン留め",
       "includeNsfw": "年齢制限チャンネルを含める"
+    }
+  },
+  "setting": {
+    "adminUsers": {
+      "title": "管理者ユーザー",
+      "description": "このWebアプリにログインできる管理者を追加・削除します。追加するユーザーはサーバーメンバーである必要があります。",
+      "addTitle": "管理者を追加",
+      "searchLabel": "メンバーを検索",
+      "searchPlaceholder": "名前またはユーザーIDで検索",
+      "searchHint": "候補から選択するか、DiscordのユーザーIDを直接入力できます。",
+      "listTitle": "現在の管理者",
+      "searchTablePlaceholder": "管理者を検索",
+      "user": "ユーザー",
+      "actions": "操作",
+      "empty": "管理者が登録されていません。",
+      "loading": "管理者を読み込み中です。",
+      "loadFailed": "管理者一覧を取得できませんでした。",
+      "selectMember": "追加するメンバーを選択してください。",
+      "alreadyAdmin": "このユーザーはすでに管理者です。",
+      "addSuccess": "管理者を追加しました。",
+      "addFailed": "管理者を追加できませんでした。",
+      "memberNotFound": "サーバーメンバーが見つかりません。Botが同期したメンバーのみ追加できます。",
+      "invalidUserId": "ユーザーIDの形式が正しくありません。",
+      "removeDialogTitle": "管理者を削除",
+      "removeDialogWarning": "{name} の管理者権限を削除します。",
+      "removeSelfWarning": "自分自身を削除すると、このアプリにログインできなくなる場合があります。",
+      "removeSuccess": "管理者を削除しました。",
+      "removeFailed": "管理者を削除できませんでした。",
+      "adminNotFound": "管理者が見つかりませんでした。"
     }
   },
   "filter": {

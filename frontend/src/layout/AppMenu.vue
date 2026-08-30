@@ -70,6 +70,16 @@ const model = computed(() => [
                 to: '/filter/messages'
             }
         ]
+    },
+    {
+        label: t('menu.settings'),
+        items: [
+            {
+                label: t('menu.adminUsers'),
+                icon: 'pi pi-fw pi-user-edit',
+                to: '/setting/admin-users'
+            }
+        ]
     }
 ]);
 </script>
