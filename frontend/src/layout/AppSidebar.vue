@@ -9,15 +9,29 @@ const route = useRoute();
 const sidebarRef = ref(null);
 let outsideClickListener = null;
 
+const FILTER_MENU_PATHS = ['/filter', '/filter/member'];
+
+function ensureMenuOpen(path) {
+    if (!layoutState.openMenuPaths.includes(path)) {
+        layoutState.openMenuPaths.push(path);
+    }
+}
+
+function clearFilterMenus() {
+    layoutState.openMenuPaths = layoutState.openMenuPaths.filter(
+        (path) => !FILTER_MENU_PATHS.includes(path),
+    );
+}
+
 watch(
     () => route.path,
     (newPath) => {
-        if (newPath.startsWith('/filter')) {
-            layoutState.activePath = '/filter';
-        } else if (isDesktop()) {
-            layoutState.activePath = null;
+        if (newPath.startsWith('/filter/member')) {
+            ensureMenuOpen('/filter/member');
+        } else if (newPath.startsWith('/filter')) {
+            ensureMenuOpen('/filter');
         } else {
-            layoutState.activePath = newPath;
+            clearFilterMenus();
         }
 
         layoutState.overlayMenuActive = false;

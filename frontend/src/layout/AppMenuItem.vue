@@ -22,8 +22,22 @@ const props = defineProps({
 const fullPath = computed(() => (props.item.path ? (props.parentPath ? props.parentPath + props.item.path : props.item.path) : null));
 
 const isActive = computed(() => {
-    return props.item.path ? layoutState.activePath?.startsWith(fullPath.value) : layoutState.activePath === props.item.to;
+    if (!props.item.path || !fullPath.value) {
+        return false;
+    }
+
+    return layoutState.openMenuPaths.includes(fullPath.value);
 });
+
+function toggleMenuPath(path) {
+    const index = layoutState.openMenuPaths.indexOf(path);
+    if (index !== -1) {
+        layoutState.openMenuPaths.splice(index, 1);
+    } else {
+        layoutState.openMenuPaths.push(path);
+        layoutState.menuHoverActive = true;
+    }
+}
 
 const itemClick = (event, item) => {
     if (item.disabled) {
@@ -36,12 +50,7 @@ const itemClick = (event, item) => {
     }
 
     if (item.items) {
-        if (isActive.value) {
-            layoutState.activePath = null;
-        } else {
-            layoutState.activePath = fullPath.value;
-            layoutState.menuHoverActive = true;
-        }
+        toggleMenuPath(fullPath.value);
     } else {
         layoutState.overlayMenuActive = false;
         layoutState.mobileMenuActive = false;
@@ -50,8 +59,10 @@ const itemClick = (event, item) => {
 };
 
 const onMouseEnter = () => {
-    if (isDesktop() && props.root && props.item.items && layoutState.menuHoverActive) {
-        layoutState.activePath = fullPath.value;
+    if (isDesktop() && props.root && props.item.items && layoutState.menuHoverActive && fullPath.value) {
+        if (!layoutState.openMenuPaths.includes(fullPath.value)) {
+            layoutState.openMenuPaths.push(fullPath.value);
+        }
     }
 };
 </script>
