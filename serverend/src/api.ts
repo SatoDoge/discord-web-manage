@@ -3,6 +3,7 @@ import { cors } from 'hono/cors';
 import auth from '#server/routes/auth.js';
 import discord from '#server/routes/discord.js';
 import filter from '#server/routes/filter.js';
+import memberJoin from '#server/routes/memberJoin.js';
 import message from '#server/routes/message.js';
 import user from '#server/routes/user.js';
 import utils from '#server/routes/utils.js';
@@ -35,6 +36,7 @@ export function createApp() {
   app.route('/api/discord', discord);
   app.route('/api/filter', filter);
   app.route('/api/message', message);
+  app.route('/api/member-join', memberJoin);
   app.route('/api', utils);
   
   logger.info('App created');
