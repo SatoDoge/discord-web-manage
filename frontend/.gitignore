@@ -11,3 +11,4 @@ dist
 .idea
 .eslintcache
 **/.DS_Store
+components.d.ts
