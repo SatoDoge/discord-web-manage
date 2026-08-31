@@ -1,5 +1,6 @@
 import { banGuildMember } from '#server/discord/banMember.js';
 import { isValidDeleteMessageSeconds } from '#server/services/discord/banMemberService.js';
+import { recordAdminOperation } from '#server/services/operationLog/recordAdminOperation.js';
 import { getStoredMessageForMeasure } from '#server/services/message/getStoredMessageForMeasure.js';
 import {
   appendMeasuredMessage,
@@ -32,17 +33,47 @@ export async function banStoredMessage(
   input: BanStoredMessageInput,
 ): Promise<BanStoredMessageResult> {
   if (typeof input.reason !== 'string' || !input.reason.trim()) {
+    recordAdminOperation({
+      actorUserId: input.operationUserId,
+      action: 'message.filtered.ban',
+      category: 'message',
+      targetType: 'message',
+      targetId: input.messageId,
+      success: false,
+      errorMessage: 'invalid_reason',
+      summary: 'フィルター済みメッセージの作者BANに失敗しました（無効な理由）',
+    });
     return { ok: false, error: 'invalid_reason' };
   }
 
   const deleteMessageSeconds =
     input.deleteMessageSeconds === undefined ? 0 : input.deleteMessageSeconds;
   if (!isValidDeleteMessageSeconds(deleteMessageSeconds)) {
+    recordAdminOperation({
+      actorUserId: input.operationUserId,
+      action: 'message.filtered.ban',
+      category: 'message',
+      targetType: 'message',
+      targetId: input.messageId,
+      success: false,
+      errorMessage: 'invalid_delete_message_seconds',
+      summary: 'フィルター済みメッセージの作者BANに失敗しました（無効な削除秒数）',
+    });
     return { ok: false, error: 'invalid_delete_message_seconds' };
   }
 
   const lookup = await getStoredMessageForMeasure(input.messageId);
   if (!lookup.ok) {
+    recordAdminOperation({
+      actorUserId: input.operationUserId,
+      action: 'message.filtered.ban',
+      category: 'message',
+      targetType: 'message',
+      targetId: input.messageId,
+      success: false,
+      errorMessage: lookup.error,
+      summary: 'フィルター済みメッセージの作者BANに失敗しました',
+    });
     return { ok: false, error: lookup.error };
   }
 
@@ -79,8 +110,30 @@ export async function banStoredMessage(
   const updated = await updateMessage(stored);
 
   if (!succeeded) {
+    recordAdminOperation({
+      actorUserId: input.operationUserId,
+      action: 'message.filtered.ban',
+      category: 'message',
+      targetType: 'user',
+      targetId: stored.author.userId,
+      success: false,
+      errorMessage: banError,
+      summary: 'フィルター済みメッセージの作者BANに失敗しました',
+      metadata: { messageId: input.messageId, reason, deleteMessageSeconds },
+    });
     return { ok: false, error: 'ban_failed', banError };
   }
+
+  recordAdminOperation({
+    actorUserId: input.operationUserId,
+    action: 'message.filtered.ban',
+    category: 'message',
+    targetType: 'user',
+    targetId: stored.author.userId,
+    success: true,
+    summary: 'フィルター済みメッセージの作者をBANしました',
+    metadata: { messageId: input.messageId, reason, deleteMessageSeconds },
+  });
 
   return { ok: true, data: updated };
 }

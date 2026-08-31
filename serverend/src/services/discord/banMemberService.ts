@@ -1,4 +1,5 @@
 import { banGuildMember } from '#server/discord/banMember.js';
+import { recordAdminOperation } from '#server/services/operationLog/recordAdminOperation.js';
 import { getMember, removeMember } from '#server/stores/memberStore.js';
 
 export type MemberModerationFailure = {
@@ -15,6 +16,7 @@ export type MemberModerationResult = {
 };
 
 export type BanMembersInput = {
+  actorUserId: string;
   userIds: string[];
   reason: string;
   deleteMessageSeconds?: number;
@@ -51,6 +53,28 @@ export async function banMembers(input: BanMembersInput): Promise<MemberModerati
       });
     }
   }
+
+  const success = failures.length === 0;
+  recordAdminOperation({
+    actorUserId: input.actorUserId,
+    action: 'member.ban',
+    category: 'member_join',
+    targetType: 'user',
+    targetId: input.userIds.length === 1 ? input.userIds[0] : null,
+    success,
+    errorMessage: success ? null : `${failures.length}件のBANに失敗`,
+    summary: success
+      ? `${succeeded}人のメンバーをBANしました`
+      : `${succeeded}人をBAN、${failures.length}人に失敗しました`,
+    metadata: {
+      userIds: input.userIds,
+      reason,
+      deleteMessageSeconds,
+      succeeded,
+      failed: failures.length,
+      failures,
+    },
+  });
 
   return {
     succeeded,

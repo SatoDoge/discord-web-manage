@@ -1,4 +1,5 @@
 import { banGuildMember } from '#server/discord/banMember.js';
+import { recordAdminOperation } from '#server/services/operationLog/recordAdminOperation.js';
 import { getStoredMemberJoinForMeasure } from '#server/services/memberJoin/getStoredMemberJoinForMeasure.js';
 import { appendMeasuredJoinEvent } from '#server/services/memberJoin/measuredMemberJoinRecord.js';
 import {
@@ -29,11 +30,31 @@ export async function banStoredMemberJoin(
   input: BanStoredMemberJoinInput,
 ): Promise<BanStoredMemberJoinResult> {
   if (typeof input.reason !== 'string' || !input.reason.trim()) {
+    recordAdminOperation({
+      actorUserId: input.operationUserId,
+      action: 'member_join.filtered.ban',
+      category: 'member_join',
+      targetType: 'join_event',
+      targetId: input.joinEventId,
+      success: false,
+      errorMessage: 'invalid_reason',
+      summary: 'フィルター済み参加イベントのユーザーBANに失敗しました（無効な理由）',
+    });
     return { ok: false, error: 'invalid_reason' };
   }
 
   const lookup = await getStoredMemberJoinForMeasure(input.joinEventId);
   if (!lookup.ok) {
+    recordAdminOperation({
+      actorUserId: input.operationUserId,
+      action: 'member_join.filtered.ban',
+      category: 'member_join',
+      targetType: 'join_event',
+      targetId: input.joinEventId,
+      success: false,
+      errorMessage: lookup.error,
+      summary: 'フィルター済み参加イベントのユーザーBANに失敗しました',
+    });
     return { ok: false, error: lookup.error };
   }
 
@@ -65,8 +86,30 @@ export async function banStoredMemberJoin(
   const updated = await updateMemberJoinEvent(stored);
 
   if (!succeeded) {
+    recordAdminOperation({
+      actorUserId: input.operationUserId,
+      action: 'member_join.filtered.ban',
+      category: 'member_join',
+      targetType: 'user',
+      targetId: stored.userId,
+      success: false,
+      errorMessage: banError,
+      summary: 'フィルター済み参加イベントのユーザーBANに失敗しました',
+      metadata: { joinEventId: input.joinEventId, reason },
+    });
     return { ok: false, error: 'ban_failed', banError };
   }
+
+  recordAdminOperation({
+    actorUserId: input.operationUserId,
+    action: 'member_join.filtered.ban',
+    category: 'member_join',
+    targetType: 'user',
+    targetId: stored.userId,
+    success: true,
+    summary: 'フィルター済み参加イベントのユーザーをBANしました',
+    metadata: { joinEventId: input.joinEventId, reason },
+  });
 
   return { ok: true, data: updated };
 }

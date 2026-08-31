@@ -1,4 +1,5 @@
 import { giveRoleToMember } from '#server/discord/giveRoleMember.js';
+import { recordAdminOperation } from '#server/services/operationLog/recordAdminOperation.js';
 import { getStoredMessageForMeasure } from '#server/services/message/getStoredMessageForMeasure.js';
 import {
   appendMeasuredMessage,
@@ -29,11 +30,31 @@ export async function giveRoleStoredMessage(
   input: GiveRoleStoredMessageInput,
 ): Promise<GiveRoleStoredMessageResult> {
   if (!isSnowflake(input.roleId)) {
+    recordAdminOperation({
+      actorUserId: input.operationUserId,
+      action: 'message.filtered.role',
+      category: 'message',
+      targetType: 'message',
+      targetId: input.messageId,
+      success: false,
+      errorMessage: 'invalid_role_id',
+      summary: 'フィルター済みメッセージの作者へのロール付与に失敗しました（無効なロールID）',
+    });
     return { ok: false, error: 'invalid_role_id' };
   }
 
   const lookup = await getStoredMessageForMeasure(input.messageId);
   if (!lookup.ok) {
+    recordAdminOperation({
+      actorUserId: input.operationUserId,
+      action: 'message.filtered.role',
+      category: 'message',
+      targetType: 'message',
+      targetId: input.messageId,
+      success: false,
+      errorMessage: lookup.error,
+      summary: 'フィルター済みメッセージの作者へのロール付与に失敗しました',
+    });
     return { ok: false, error: lookup.error };
   }
 
@@ -60,8 +81,30 @@ export async function giveRoleStoredMessage(
   const updated = await updateMessage(stored);
 
   if (!succeeded) {
+    recordAdminOperation({
+      actorUserId: input.operationUserId,
+      action: 'message.filtered.role',
+      category: 'message',
+      targetType: 'user',
+      targetId: stored.author.userId,
+      success: false,
+      errorMessage: roleError,
+      summary: 'フィルター済みメッセージの作者へのロール付与に失敗しました',
+      metadata: { messageId: input.messageId, roleId: input.roleId },
+    });
     return { ok: false, error: 'role_failed', roleError };
   }
+
+  recordAdminOperation({
+    actorUserId: input.operationUserId,
+    action: 'message.filtered.role',
+    category: 'message',
+    targetType: 'user',
+    targetId: stored.author.userId,
+    success: true,
+    summary: 'フィルター済みメッセージの作者にロールを付与しました',
+    metadata: { messageId: input.messageId, roleId: input.roleId },
+  });
 
   return { ok: true, data: updated };
 }

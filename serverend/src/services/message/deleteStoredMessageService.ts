@@ -1,4 +1,5 @@
 import { deleteGuildMessage } from '#server/discord/deleteMessage.js';
+import { recordAdminOperation } from '#server/services/operationLog/recordAdminOperation.js';
 import { updateMessage } from '#server/stores/messageDataStore.js';
 import {
   appendMeasuredMessage,
@@ -23,6 +24,16 @@ export async function deleteStoredMessage(
 ): Promise<DeleteStoredMessageResult> {
   const lookup = await getStoredMessageForMeasure(messageId);
   if (!lookup.ok) {
+    recordAdminOperation({
+      actorUserId: operationUserId,
+      action: 'message.filtered.delete',
+      category: 'message',
+      targetType: 'message',
+      targetId: messageId,
+      success: false,
+      errorMessage: lookup.error,
+      summary: 'フィルター済みメッセージの削除に失敗しました',
+    });
     return { ok: false, error: lookup.error };
   }
 
@@ -47,12 +58,37 @@ export async function deleteStoredMessage(
   const updated = await updateMessage(stored);
 
   if (!isDeleted) {
+    recordAdminOperation({
+      actorUserId: operationUserId,
+      action: 'message.filtered.delete',
+      category: 'message',
+      targetType: 'message',
+      targetId: messageId,
+      success: false,
+      errorMessage: result.ok ? undefined : result.error,
+      summary: 'フィルター済みメッセージの削除に失敗しました',
+      metadata: { channelId: stored.channelId },
+    });
     return {
       ok: false,
       error: 'delete_failed',
       deleteError: result.ok ? undefined : result.error,
     };
   }
+
+  recordAdminOperation({
+    actorUserId: operationUserId,
+    action: 'message.filtered.delete',
+    category: 'message',
+    targetType: 'message',
+    targetId: messageId,
+    success: true,
+    summary: 'フィルター済みメッセージを削除しました',
+    metadata: {
+      channelId: stored.channelId,
+      authorUserId: stored.author.userId,
+    },
+  });
 
   return { ok: true, data: updated };
 }

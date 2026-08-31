@@ -91,7 +91,9 @@ auth.post('/admin-users', requireAuth, async (c) => {
     return c.json({ error: 'missing_user_id' }, 400);
   }
 
-  const result = await addAdminUser(userId);
+  const result = await addAdminUser(userId, {
+    actorUserId: c.get('userId'),
+  });
   if (!result.ok) {
     return c.json(
       { error: result.error },
@@ -107,7 +109,9 @@ auth.post('/admin-users', requireAuth, async (c) => {
 
 /** Remove an admin user (protected). */
 auth.delete('/admin-users/:userId', requireAuth, async (c) => {
-  const result = await removeAdminUser(c.req.param('userId'));
+  const result = await removeAdminUser(c.req.param('userId'), {
+    actorUserId: c.get('userId'),
+  });
   if (!result.ok) {
     return c.json(
       { error: result.error },

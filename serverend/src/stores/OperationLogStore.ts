@@ -1,13 +1,20 @@
+import { randomUUID } from 'node:crypto';
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { OperationLog, OperationLogList } from '#server/types/operationLog.js';
+import type {
+  CreateOperationLogInput,
+  OperationLog,
+  OperationLogList,
+} from '#server/types/operationLog.js';
 import { createWriteQueue } from '#server/utils/writeQueue.js';
 
 const DATA_PATH = path.join(
   path.dirname(fileURLToPath(import.meta.url)),
   '../../data/operationLog.json',
 );
+
+const MAX_STORED_OPERATION_LOGS = 500;
 
 const enqueue = createWriteQueue();
 
@@ -32,16 +39,41 @@ async function writeToDisk(list: OperationLogList): Promise<void> {
   await writeFile(DATA_PATH, `${JSON.stringify(list, null, 2)}\n`, 'utf8');
 }
 
-/** Read all operation logs (queued so it never interleaves with a write). */
+function appendWithLimit(
+  list: OperationLogList,
+  log: OperationLog,
+): OperationLogList {
+  if (list.length >= MAX_STORED_OPERATION_LOGS) {
+    return [...list.slice(1), log];
+  }
+  return [...list, log];
+}
+
+/** Read all operation logs (most recent last, max 500). */
 export function getOperationLogList(): Promise<OperationLogList> {
   return enqueue(() => readFromDisk());
 }
 
-/** Append a new operation log entry. */
-export function createOperationLog(log: OperationLog): Promise<OperationLog> {
+/** Read a single operation log by id. */
+export function getOperationLog(logId: string): Promise<OperationLog | undefined> {
   return enqueue(async () => {
     const list = await readFromDisk();
-    await writeToDisk([...list, log]);
+    return list.find((entry) => entry.logId === logId);
+  });
+}
+
+/** Append a new operation log entry. */
+export function addOperationLog(
+  input: CreateOperationLogInput,
+): Promise<OperationLog> {
+  return enqueue(async () => {
+    const list = await readFromDisk();
+    const log: OperationLog = {
+      ...input,
+      logId: randomUUID(),
+      occurredAt: new Date().toISOString(),
+    };
+    await writeToDisk(appendWithLimit(list, log));
     return log;
   });
 }

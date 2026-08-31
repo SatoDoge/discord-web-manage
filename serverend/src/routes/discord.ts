@@ -38,7 +38,9 @@ discord.put('/presence', async (c) => {
     return c.json({ error: 'invalid_body' }, 400);
   }
 
-  const result = applyPresenceUpdate(body);
+  const result = applyPresenceUpdate(body, {
+    actorUserId: c.get('userId'),
+  });
   if (!result.ok) {
     const status: ContentfulStatusCode =
       result.error === 'bot_not_connected' ? 503 : 400;
@@ -133,6 +135,7 @@ discord.post('/members/ban', async (c) => {
   }
 
   const result = await banMembers({
+    actorUserId: c.get('userId'),
     userIds: body.userIds,
     reason: body.reason,
     deleteMessageSeconds,
@@ -161,6 +164,7 @@ discord.post('/members/kick', async (c) => {
   }
 
   const result = await kickMembers({
+    actorUserId: c.get('userId'),
     userIds: body.userIds,
     reason: body.reason,
   });
@@ -219,7 +223,9 @@ discord.post('/messages/delete', async (c) => {
     return c.json({ error: 'invalid_body' }, 400);
   }
 
-  const result = await deleteMessage(body.channelId, body.messageId, body.reason);
+  const result = await deleteMessage(body.channelId, body.messageId, body.reason, {
+    actorUserId: c.get('userId'),
+  });
   if (!result.ok) {
     return c.json(
       { error: result.error },

@@ -1,4 +1,5 @@
 import { kickGuildMember } from '#server/discord/kickMember.js';
+import { recordAdminOperation } from '#server/services/operationLog/recordAdminOperation.js';
 import { getStoredMessageForMeasure } from '#server/services/message/getStoredMessageForMeasure.js';
 import {
   appendMeasuredMessage,
@@ -35,16 +36,46 @@ export async function kickStoredMessage(
   input: KickStoredMessageInput,
 ): Promise<KickStoredMessageResult> {
   if (typeof input.reason !== 'string' || !input.reason.trim()) {
+    recordAdminOperation({
+      actorUserId: input.operationUserId,
+      action: 'message.filtered.kick',
+      category: 'message',
+      targetType: 'message',
+      targetId: input.messageId,
+      success: false,
+      errorMessage: 'invalid_reason',
+      summary: 'フィルター済みメッセージの作者キックに失敗しました（無効な理由）',
+    });
     return { ok: false, error: 'invalid_reason' };
   }
 
   const kickSeconds = input.kickSeconds === undefined ? 0 : input.kickSeconds;
   if (!isValidKickSeconds(kickSeconds)) {
+    recordAdminOperation({
+      actorUserId: input.operationUserId,
+      action: 'message.filtered.kick',
+      category: 'message',
+      targetType: 'message',
+      targetId: input.messageId,
+      success: false,
+      errorMessage: 'invalid_kick_seconds',
+      summary: 'フィルター済みメッセージの作者キックに失敗しました（無効なキック秒数）',
+    });
     return { ok: false, error: 'invalid_kick_seconds' };
   }
 
   const lookup = await getStoredMessageForMeasure(input.messageId);
   if (!lookup.ok) {
+    recordAdminOperation({
+      actorUserId: input.operationUserId,
+      action: 'message.filtered.kick',
+      category: 'message',
+      targetType: 'message',
+      targetId: input.messageId,
+      success: false,
+      errorMessage: lookup.error,
+      summary: 'フィルター済みメッセージの作者キックに失敗しました',
+    });
     return { ok: false, error: lookup.error };
   }
 
@@ -76,8 +107,30 @@ export async function kickStoredMessage(
   const updated = await updateMessage(stored);
 
   if (!succeeded) {
+    recordAdminOperation({
+      actorUserId: input.operationUserId,
+      action: 'message.filtered.kick',
+      category: 'message',
+      targetType: 'user',
+      targetId: stored.author.userId,
+      success: false,
+      errorMessage: kickError,
+      summary: 'フィルター済みメッセージの作者キックに失敗しました',
+      metadata: { messageId: input.messageId, reason, kickSeconds },
+    });
     return { ok: false, error: 'kick_failed', kickError };
   }
+
+  recordAdminOperation({
+    actorUserId: input.operationUserId,
+    action: 'message.filtered.kick',
+    category: 'message',
+    targetType: 'user',
+    targetId: stored.author.userId,
+    success: true,
+    summary: 'フィルター済みメッセージの作者をキックしました',
+    metadata: { messageId: input.messageId, reason, kickSeconds },
+  });
 
   return { ok: true, data: updated };
 }

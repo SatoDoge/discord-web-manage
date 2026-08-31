@@ -2,6 +2,8 @@ import {
   deleteGuildMessage,
   type DeleteMessageError,
 } from '#server/discord/deleteMessage.js';
+import { recordAuthenticatedAdminOperation } from '#server/services/operationLog/recordAdminOperation.js';
+import type { AuthenticatedServiceContext } from '#server/types/authenticatedService.js';
 
 export type { DeleteMessageError };
 
@@ -37,12 +39,33 @@ function errorStatus(error: DeleteMessageError): number {
 export async function deleteMessage(
   channelId: unknown,
   messageId: unknown,
-  reason?: unknown,
+  reason: unknown,
+  context: AuthenticatedServiceContext,
 ): Promise<DeleteMessageServiceResult> {
   if (!isSnowflake(channelId)) {
+    recordAuthenticatedAdminOperation(context, {
+      action: 'message.delete',
+      category: 'message',
+      targetType: 'message',
+      targetId: typeof messageId === 'string' ? messageId : null,
+      success: false,
+      errorMessage: 'invalid_channel_id',
+      summary: 'メッセージの削除に失敗しました（無効なチャンネルID）',
+      metadata: { channelId, messageId },
+    });
     return { ok: false, status: 400, error: 'invalid_channel_id' };
   }
   if (!isSnowflake(messageId)) {
+    recordAuthenticatedAdminOperation(context, {
+      action: 'message.delete',
+      category: 'message',
+      targetType: 'message',
+      targetId: null,
+      success: false,
+      errorMessage: 'invalid_message_id',
+      summary: 'メッセージの削除に失敗しました（無効なメッセージID）',
+      metadata: { channelId, messageId },
+    });
     return { ok: false, status: 400, error: 'invalid_message_id' };
   }
 
@@ -51,12 +74,32 @@ export async function deleteMessage(
 
   const result = await deleteGuildMessage(channelId, messageId, auditReason);
   if (!result.ok) {
+    recordAuthenticatedAdminOperation(context, {
+      action: 'message.delete',
+      category: 'message',
+      targetType: 'message',
+      targetId: messageId,
+      success: false,
+      errorMessage: result.error,
+      summary: 'メッセージの削除に失敗しました',
+      metadata: { channelId, messageId, reason: auditReason },
+    });
     return {
       ok: false,
       status: errorStatus(result.error),
       error: result.error,
     };
   }
+
+  recordAuthenticatedAdminOperation(context, {
+    action: 'message.delete',
+    category: 'message',
+    targetType: 'message',
+    targetId: messageId,
+    success: true,
+    summary: 'メッセージを削除しました',
+    metadata: { channelId, messageId, reason: auditReason },
+  });
 
   return { ok: true };
 }

@@ -31,7 +31,9 @@ filter.put('/', async (c) => {
     return c.json({ error: 'invalid_body' }, 400);
   }
 
-  const result = await updateMessageFilterSettings(body);
+  const result = await updateMessageFilterSettings(body, {
+    actorUserId: c.get('userId'),
+  });
   if (!result.ok) {
     return c.json({ error: result.error }, 400);
   }
@@ -50,7 +52,9 @@ filter.put('/word', async (c) => {
     return c.json({ error: 'invalid_body' }, 400);
   }
 
-  const result = await saveWordFilterSettings(body);
+  const result = await saveWordFilterSettings(body, {
+    actorUserId: c.get('userId'),
+  });
   if (!result.ok) {
     return c.json({ error: result.error }, 400);
   }
@@ -69,7 +73,9 @@ filter.put('/dupli', async (c) => {
     return c.json({ error: 'invalid_body' }, 400);
   }
 
-  const result = await saveDupliFilterSettings(body);
+  const result = await saveDupliFilterSettings(body, {
+    actorUserId: c.get('userId'),
+  });
   if (!result.ok) {
     return c.json({ error: result.error }, 400);
   }
@@ -88,7 +94,9 @@ filter.put('/moderation', async (c) => {
     return c.json({ error: 'invalid_body' }, 400);
   }
 
-  const result = await saveModerationFilterSettings(body);
+  const result = await saveModerationFilterSettings(body, {
+    actorUserId: c.get('userId'),
+  });
   if (!result.ok) {
     return c.json({ error: result.error }, 400);
   }
@@ -107,7 +115,9 @@ filter.put('/member/name', async (c) => {
     return c.json({ error: 'invalid_body' }, 400);
   }
 
-  const result = await saveNameFilterSettings(body);
+  const result = await saveNameFilterSettings(body, {
+    actorUserId: c.get('userId'),
+  });
   if (!result.ok) {
     return c.json({ error: result.error }, 400);
   }
@@ -126,7 +136,9 @@ filter.put('/member/join-delay', async (c) => {
     return c.json({ error: 'invalid_body' }, 400);
   }
 
-  const result = await saveJoinDelayFilterSettings(body);
+  const result = await saveJoinDelayFilterSettings(body, {
+    actorUserId: c.get('userId'),
+  });
   if (!result.ok) {
     return c.json({ error: result.error }, 400);
   }
@@ -147,7 +159,9 @@ filter.put('/member/profile-moderation', async (c) => {
     return c.json({ error: 'invalid_body' }, 400);
   }
 
-  const result = await saveMemberProfileModerationFilterSettings(body);
+  const result = await saveMemberProfileModerationFilterSettings(body, {
+    actorUserId: c.get('userId'),
+  });
   if (!result.ok) {
     return c.json({ error: result.error }, 400);
   }
