@@ -116,8 +116,9 @@ function findBlockedWords(
 function findBlockedUrls(
     urls: string[],
     urlFilterList: string[],
-): { filteredWords: string[]; filteredWordCount: number } {
+): { filteredWords: string[]; filteredWordCount: number; matchedUrls: string[] } {
     const filteredWords: string[] = [];
+    const matchedUrls: string[] = [];
     let filteredWordCount = 0;
 
     for (const pattern of urlFilterList) {
@@ -130,6 +131,9 @@ function findBlockedUrls(
         for (const url of urls) {
             if (matchesUrlPattern(url, trimmedPattern)) {
                 matchCount += 1;
+                if (!matchedUrls.includes(url)) {
+                    matchedUrls.push(url);
+                }
             }
         }
 
@@ -139,7 +143,7 @@ function findBlockedUrls(
         }
     }
 
-    return { filteredWords, filteredWordCount };
+    return { filteredWords, filteredWordCount, matchedUrls };
 }
 
 export function applyWordFilter(
@@ -159,6 +163,9 @@ export function applyWordFilter(
         isFiltered: filteredWordCount > 0,
         filteredWords,
         filteredWordCount,
+        blockedWords: blockedWords.filteredWords,
+        blockedUrlPatterns: blockedUrls.filteredWords,
+        matchedUrls: blockedUrls.matchedUrls,
     };
 }
 

@@ -2,7 +2,9 @@
 import { FilterMatchMode } from '@primevue/core/api';
 import { useToast } from 'primevue/usetoast';
 import { computed, onMounted, reactive, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 
+const { t } = useI18n();
 const toast = useToast();
 
 const SEARCH_HAS_TYPES = ['image', 'sound', 'video', 'file', 'sticker', 'embed', 'link', 'poll', 'snapshot'];
@@ -66,11 +68,11 @@ const tableFilters = ref({
     global: { value: null, matchMode: FilterMatchMode.CONTAINS }
 });
 
-const triStateOptions = [
-    { label: 'Any', value: null },
-    { label: 'Yes', value: true },
-    { label: 'No', value: false }
-];
+const triStateOptions = computed(() => [
+    { label: t('common.any'), value: null },
+    { label: t('common.yes'), value: true },
+    { label: t('common.no'), value: false }
+]);
 
 const limitOptions = [
     { label: '10', value: 10 },
@@ -156,14 +158,14 @@ const embedTypeOptions = computed(() =>
 
 const sortByOptions = computed(() =>
     SEARCH_SORT_BY.map((value) => ({
-        label: value === 'timestamp' ? 'Timestamp' : 'Relevance',
+        label: value === 'timestamp' ? t('manage.messages.sortTimestamp') : t('manage.messages.sortRelevance'),
         value
     }))
 );
 
 const sortOrderOptions = computed(() =>
     SEARCH_SORT_ORDER.map((value) => ({
-        label: value === 'asc' ? 'Ascending' : 'Descending',
+        label: value === 'asc' ? t('manage.messages.sortAsc') : t('manage.messages.sortDesc'),
         value
     }))
 );
@@ -411,16 +413,16 @@ async function loadOptions() {
         if (!membersResponse.ok || !channelsResponse.ok) {
             toast.add({
                 severity: 'warn',
-                summary: 'Partial load',
-                detail: 'Some search filter options could not be loaded.',
+                summary: t('toast.partialLoad'),
+                detail: t('manage.messages.partialLoadDetail'),
                 life: 4000
             });
         }
     } catch {
         toast.add({
             severity: 'error',
-            summary: 'Load failed',
-            detail: 'Could not load members or channels for search filters.',
+            summary: t('toast.loadFailed'),
+            detail: t('manage.messages.loadOptionsFailed'),
             life: 4000
         });
     } finally {
@@ -470,8 +472,8 @@ async function searchMessages(resetOffset = true) {
 
         toast.add({
             severity: 'error',
-            summary: 'Search failed',
-            detail,
+            summary: t('toast.actionFailed'),
+            detail: t('manage.messages.searchFailed'),
             life: 6000
         });
     } finally {
@@ -499,8 +501,8 @@ function openDeleteDialog() {
     if (!selectedMessages.value.length) {
         toast.add({
             severity: 'warn',
-            summary: 'No selection',
-            detail: 'Select at least one message first.',
+            summary: t('toast.noSelection'),
+            detail: t('manage.users.noSelectionDetail'),
             life: 3000
         });
         return;
@@ -548,11 +550,11 @@ async function confirmDelete() {
 
     toast.add({
         severity: failures.length ? 'warn' : 'success',
-        summary: 'Delete complete',
+        summary: t('manage.messages.deleteComplete'),
         detail:
             failures.length === 0
-                ? `Deleted ${succeeded} message${succeeded === 1 ? '' : 's'}.`
-                : `Deleted ${succeeded}, failed ${failures.length}.`,
+                ? t('manage.messages.deleteResult', { succeeded })
+                : t('manage.messages.deleteResultPartial', { succeeded, failed: failures.length }),
         life: failures.length ? 10000 : 4000
     });
 
@@ -567,13 +569,13 @@ onMounted(loadOptions);
         <div class="flex flex-col gap-8">
             <div class="card flex flex-col gap-6">
                 <div>
-                    <div class="font-semibold text-xl">Message Search</div>
-                    <p class="text-muted-color m-0 mt-1">Search guild messages and delete selected results in bulk.</p>
+                    <div class="font-semibold text-xl">{{ t('manage.messages.title') }}</div>
+                    <p class="text-muted-color m-0 mt-1">{{ t('manage.messages.description') }}</p>
                 </div>
 
                 <div class="grid grid-cols-12 gap-4">
                     <div class="col-span-12 md:col-span-6 flex flex-col gap-2">
-                        <label for="search-authors">Authors</label>
+                        <label for="search-authors">{{ t('manage.messages.authors') }}</label>
                         <MultiSelect
                             id="search-authors"
                             v-model="basicForm.authorIds"
@@ -582,7 +584,7 @@ onMounted(loadOptions);
                             optionValue="value"
                             display="chip"
                             filter
-                            placeholder="Select users"
+                            :placeholder="t('manage.messages.selectUsers')"
                             class="w-full"
                             :disabled="loadingOptions || searching"
                             :maxSelectedLabels="3"
@@ -600,7 +602,7 @@ onMounted(loadOptions);
                     </div>
 
                     <div class="col-span-12 md:col-span-6 flex flex-col gap-2">
-                        <label for="search-channels">Channels</label>
+                        <label for="search-channels">{{ t('manage.messages.channels') }}</label>
                         <MultiSelect
                             id="search-channels"
                             v-model="basicForm.channelIds"
@@ -609,7 +611,7 @@ onMounted(loadOptions);
                             optionValue="value"
                             display="chip"
                             filter
-                            placeholder="Select channels"
+                            :placeholder="t('manage.messages.selectChannels')"
                             class="w-full"
                             :disabled="loadingOptions || searching"
                             :maxSelectedLabels="3"
@@ -617,7 +619,7 @@ onMounted(loadOptions);
                     </div>
 
                     <div class="col-span-12 md:col-span-6 flex flex-col gap-2">
-                        <label for="search-has">Contains</label>
+                        <label for="search-has">{{ t('manage.messages.contains') }}</label>
                         <MultiSelect
                             id="search-has"
                             v-model="basicForm.has"
@@ -625,7 +627,7 @@ onMounted(loadOptions);
                             optionLabel="label"
                             optionValue="value"
                             display="chip"
-                            placeholder="Links, images, files..."
+                            :placeholder="t('manage.messages.containsPlaceholder')"
                             class="w-full"
                             :disabled="searching"
                             :maxSelectedLabels="4"
@@ -633,11 +635,11 @@ onMounted(loadOptions);
                     </div>
 
                     <div class="col-span-12 md:col-span-6 flex flex-col gap-2">
-                        <label for="search-content">Content</label>
+                        <label for="search-content">{{ t('manage.messages.content') }}</label>
                         <InputText
                             id="search-content"
                             v-model="basicForm.content"
-                            placeholder="Search message text"
+                            :placeholder="t('manage.messages.contentPlaceholder')"
                             class="w-full"
                             :disabled="searching"
                             @keyup.enter="searchMessages(true)"
@@ -647,7 +649,7 @@ onMounted(loadOptions);
 
                 <div class="flex flex-wrap items-center gap-3">
                     <Button
-                        :label="showAdvanced ? 'Hide advanced search' : 'Advanced search'"
+                        :label="showAdvanced ? t('manage.messages.hideAdvanced') : t('manage.messages.showAdvanced')"
                         :icon="showAdvanced ? 'pi pi-chevron-up' : 'pi pi-chevron-down'"
                         severity="secondary"
                         text
@@ -661,7 +663,7 @@ onMounted(loadOptions);
 
                     <div class="grid grid-cols-12 gap-4">
                         <div class="col-span-12 md:col-span-4 flex flex-col gap-2">
-                            <label for="search-limit">Results per page</label>
+                            <label for="search-limit">{{ t('manage.messages.resultsPerPage') }}</label>
                             <Select
                                 id="search-limit"
                                 v-model="advancedForm.limit"
@@ -674,7 +676,7 @@ onMounted(loadOptions);
                         </div>
 
                         <div class="col-span-12 md:col-span-4 flex flex-col gap-2">
-                            <label for="search-sort-by">Sort by</label>
+                            <label for="search-sort-by">{{ t('manage.messages.sortBy') }}</label>
                             <Select
                                 id="search-sort-by"
                                 v-model="advancedForm.sortBy"
@@ -687,7 +689,7 @@ onMounted(loadOptions);
                         </div>
 
                         <div class="col-span-12 md:col-span-4 flex flex-col gap-2">
-                            <label for="search-sort-order">Sort order</label>
+                            <label for="search-sort-order">{{ t('manage.messages.sortOrder') }}</label>
                             <Select
                                 id="search-sort-order"
                                 v-model="advancedForm.sortOrder"
@@ -728,7 +730,7 @@ onMounted(loadOptions);
                         </div>
 
                         <div class="col-span-12 md:col-span-4 flex flex-col gap-2">
-                            <label for="search-pinned">Pinned</label>
+                            <label for="search-pinned">{{ t('manage.messages.pinned') }}</label>
                             <Select
                                 id="search-pinned"
                                 v-model="advancedForm.pinned"
@@ -814,7 +816,7 @@ onMounted(loadOptions);
                                 optionValue="value"
                                 display="chip"
                                 filter
-                                placeholder="Select users"
+                                :placeholder="t('manage.messages.selectUsers')"
                                 class="w-full"
                                 :disabled="loadingOptions || searching"
                             />
@@ -897,7 +899,7 @@ onMounted(loadOptions);
 
                         <div class="col-span-12 flex items-center gap-3">
                             <Checkbox v-model="advancedForm.includeNsfw" inputId="search-include-nsfw" binary :disabled="searching" />
-                            <label for="search-include-nsfw">Include age-restricted channels</label>
+                            <label for="search-include-nsfw">{{ t('manage.messages.includeNsfw') }}</label>
                         </div>
                     </div>
                 </div>
@@ -911,10 +913,10 @@ onMounted(loadOptions);
             <div class="card">
                 <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
                     <div>
-                        <div class="font-semibold text-xl">Results</div>
+                        <div class="font-semibold text-xl">{{ t('manage.messages.results') }}</div>
                         <p class="text-muted-color m-0 mt-1">
-                            <span v-if="totalResults">{{ pageStart.toLocaleString() }}–{{ pageEnd.toLocaleString() }} of {{ totalResults.toLocaleString() }}</span>
-                            <span v-else>No results yet. Run a search to load messages.</span>
+                            <span v-if="totalResults">{{ t('manage.messages.resultsRange', { start: pageStart.toLocaleString(), end: pageEnd.toLocaleString(), total: totalResults.toLocaleString() }) }}</span>
+                            <span v-else>{{ t('manage.messages.noResults') }}</span>
                         </p>
                     </div>
                     <div class="flex flex-wrap gap-2">
@@ -951,29 +953,29 @@ onMounted(loadOptions);
                                 <InputIcon>
                                     <i class="pi pi-search" />
                                 </InputIcon>
-                                <InputText v-model="tableFilters['global'].value" placeholder="Filter current results" />
+                                <InputText v-model="tableFilters['global'].value" :placeholder="t('manage.messages.filterResults')" />
                             </IconField>
                         </div>
                     </template>
 
-                    <template #empty>No messages found.</template>
-                    <template #loading>Searching messages. Please wait.</template>
+                    <template #empty>{{ t('manage.messages.empty') }}</template>
+                    <template #loading>{{ t('manage.messages.loading') }}</template>
 
                     <Column selectionMode="multiple" headerStyle="width: 3rem" />
 
-                    <Column field="id" header="Message ID" style="min-width: 12rem">
+                    <Column field="id" :header="t('manage.messages.messageId')" style="min-width: 12rem">
                         <template #body="{ data }">
                             <span class="font-mono text-sm">{{ data.id }}</span>
                         </template>
                     </Column>
 
-                    <Column header="Channel" style="min-width: 10rem">
+                    <Column :header="t('manage.messages.channel')" style="min-width: 10rem">
                         <template #body="{ data }">
                             {{ formatChannelName(data.channel_id) }}
                         </template>
                     </Column>
 
-                    <Column header="Author" style="min-width: 14rem">
+                    <Column :header="t('manage.messages.author')" style="min-width: 14rem">
                         <template #body="{ data }">
                             <div class="flex items-center gap-3">
                                 <img :src="authorAvatarUrl(data.author)" :alt="authorDisplayName(data.author)" class="user-avatar" />
@@ -985,13 +987,13 @@ onMounted(loadOptions);
                         </template>
                     </Column>
 
-                    <Column header="Content" style="min-width: 18rem">
+                    <Column :header="t('manage.messages.content')" style="min-width: 18rem">
                         <template #body="{ data }">
                             <div class="message-preview">{{ messagePreview(data) }}</div>
                         </template>
                     </Column>
 
-                    <Column header="Flags" style="min-width: 8rem">
+                    <Column :header="t('manage.messages.flags')" style="min-width: 8rem">
                         <template #body="{ data }">
                             <div class="flex flex-wrap gap-1">
                                 <Tag v-for="flag in messageFlags(data)" :key="flag" :value="flag" severity="secondary" />
@@ -1000,7 +1002,7 @@ onMounted(loadOptions);
                         </template>
                     </Column>
 
-                    <Column header="Sent" style="min-width: 11rem">
+                    <Column :header="t('manage.messages.sent')" style="min-width: 11rem">
                         <template #body="{ data }">
                             {{ formatDate(data.timestamp) }}
                         </template>
@@ -1010,21 +1012,21 @@ onMounted(loadOptions);
         </div>
     </Fluid>
 
-    <Dialog v-model:visible="deleteDialog.visible" modal header="Delete Messages" :style="{ width: '32rem' }" :closable="!deleting">
+    <Dialog v-model:visible="deleteDialog.visible" modal :header="t('manage.messages.deleteDialogTitle')" :style="{ width: '32rem' }" :closable="!deleting">
         <div class="flex flex-col gap-4">
             <Message severity="warn" :closable="false">
-                {{ selectedCount }} message{{ selectedCount === 1 ? '' : 's' }} will be permanently deleted.
+                {{ t('manage.messages.deleteDialogWarning', { count: selectedCount }) }}
             </Message>
 
             <div class="flex flex-col gap-2">
-                <label for="delete-reason">Reason (optional)</label>
+                <label for="delete-reason">{{ t('manage.messages.reasonOptional') }}</label>
                 <Textarea
                     id="delete-reason"
                     v-model="deleteDialog.reason"
                     rows="4"
                     class="w-full"
                     :disabled="deleting"
-                    placeholder="Audit log reason"
+                    :placeholder="t('manage.messages.reasonAuditPlaceholder')"
                 />
             </div>
         </div>

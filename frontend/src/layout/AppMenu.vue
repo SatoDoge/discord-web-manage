@@ -1,45 +1,83 @@
 <script setup>
-import { ref } from 'vue';
+import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import AppMenuItem from './AppMenuItem.vue';
 
-const model = ref([
+const { t } = useI18n();
+
+const model = computed(() => [
     {
-        label: 'Home',
+        label: t('menu.home'),
         items: [
             {
-                label: 'Dashboard',
+                label: t('menu.dashboard'),
                 icon: 'pi pi-fw pi-home',
                 to: '/'
             }
         ]
     },
     {
-        label: 'Bot',
+        label: t('menu.bot'),
         items: [
             {
-                label: 'Status',
+                label: t('menu.status'),
                 icon: 'pi pi-fw pi-discord',
                 to: '/bot/status'
             },
             {
-                label: 'Activity',
+                label: t('menu.activity'),
                 icon: 'pi pi-fw pi-sliders-h',
                 to: '/bot/activity'
             }
         ]
     },
     {
-        label: 'Manage',
+        label: t('menu.manage'),
         items: [
             {
-                label: 'Users',
+                label: t('menu.users'),
                 icon: 'pi pi-fw pi-users',
                 to: '/manage/users'
             },
             {
-                label: 'Messages',
+                label: t('menu.messages'),
                 icon: 'pi pi-fw pi-comments',
                 to: '/manage/messages'
+            }
+        ]
+    },
+    {
+        label: t('menu.filter'),
+        items: [
+            {
+                label: t('menu.wordFilter'),
+                icon: 'pi pi-fw pi-ban',
+                to: '/filter/word'
+            },
+            {
+                label: t('menu.dupliFilter'),
+                icon: 'pi pi-fw pi-clone',
+                to: '/filter/dupli'
+            },
+            {
+                label: t('menu.moderationFilter'),
+                icon: 'pi pi-fw pi-shield',
+                to: '/filter/moderation'
+            },
+            {
+                label: t('menu.messageDb'),
+                icon: 'pi pi-fw pi-database',
+                to: '/filter/messages'
+            }
+        ]
+    },
+    {
+        label: t('menu.settings'),
+        items: [
+            {
+                label: t('menu.adminUsers'),
+                icon: 'pi pi-fw pi-user-edit',
+                to: '/setting/admin-users'
             }
         ]
     }
@@ -48,7 +86,7 @@ const model = ref([
 
 <template>
     <ul class="layout-menu">
-        <template v-for="(item, i) in model" :key="item">
+        <template v-for="(item, i) in model" :key="item.label">
             <app-menu-item v-if="!item.separator" :item="item" :index="i"></app-menu-item>
             <li v-if="item.separator" class="menu-separator"></li>
         </template>
