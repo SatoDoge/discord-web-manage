@@ -37,7 +37,7 @@ const itemClick = (event, item) => {
 
     if (item.items) {
         if (isActive.value) {
-            layoutState.activePath = layoutState.activePath.replace(item.path, '');
+            layoutState.activePath = null;
         } else {
             layoutState.activePath = fullPath.value;
             layoutState.menuHoverActive = true;

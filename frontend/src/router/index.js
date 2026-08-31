@@ -34,6 +34,10 @@ const router = createRouter({
                     component: () => import('@/views/pages/manage/MessageList.vue')
                 },
                 {
+                    path: '/filter',
+                    redirect: '/filter/messages'
+                },
+                {
                     path: '/filter/word',
                     name: 'wordFilter',
                     component: () => import('@/views/pages/filter/WordFilter.vue')

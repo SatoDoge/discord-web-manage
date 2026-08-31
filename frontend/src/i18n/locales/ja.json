@@ -9,6 +9,7 @@
     "users": "ユーザー",
     "messages": "メッセージ",
     "filter": "フィルター",
+    "messageFilter": "メッセージフィルター",
     "wordFilter": "ワードフィルター",
     "dupliFilter": "重複フィルター",
     "moderationFilter": "モデレーションフィルター",

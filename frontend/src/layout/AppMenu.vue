@@ -50,24 +50,31 @@ const model = computed(() => [
         label: t('menu.filter'),
         items: [
             {
-                label: t('menu.wordFilter'),
-                icon: 'pi pi-fw pi-ban',
-                to: '/filter/word'
-            },
-            {
-                label: t('menu.dupliFilter'),
-                icon: 'pi pi-fw pi-clone',
-                to: '/filter/dupli'
-            },
-            {
-                label: t('menu.moderationFilter'),
-                icon: 'pi pi-fw pi-shield',
-                to: '/filter/moderation'
-            },
-            {
-                label: t('menu.messageDb'),
-                icon: 'pi pi-fw pi-database',
-                to: '/filter/messages'
+                label: t('menu.messageFilter'),
+                icon: 'pi pi-fw pi-filter',
+                path: '/filter',
+                items: [
+                    {
+                        label: t('menu.messageDb'),
+                        icon: 'pi pi-fw pi-database',
+                        to: '/filter/messages'
+                    },
+                    {
+                        label: t('menu.wordFilter'),
+                        icon: 'pi pi-fw pi-ban',
+                        to: '/filter/word'
+                    },
+                    {
+                        label: t('menu.dupliFilter'),
+                        icon: 'pi pi-fw pi-clone',
+                        to: '/filter/dupli'
+                    },
+                    {
+                        label: t('menu.moderationFilter'),
+                        icon: 'pi pi-fw pi-shield',
+                        to: '/filter/moderation'
+                    }
+                ]
             }
         ]
     },

@@ -9,6 +9,7 @@
     "users": "Users",
     "messages": "Messages",
     "filter": "Filter",
+    "messageFilter": "Message Filter",
     "wordFilter": "Word Filter",
     "dupliFilter": "Duplicate Filter",
     "moderationFilter": "Moderation Filter",
