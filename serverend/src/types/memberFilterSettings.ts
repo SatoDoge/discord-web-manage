@@ -1,32 +1,25 @@
 export type Settings = {
     isEnabled: boolean;
-    channelIdList: string[];
-    channelListType: "allow" | "block";
     notificationChannelId: string | null;
     banUser : boolean;
     banReason : string | null;
-    deleteMessageSeconds : number | null;
     kickUser : boolean;
     kickReason : string | null;
     kickSeconds : number | null;
     giveRole:boolean;
     roleId: string | null;
-    deleteMessage: boolean;
 }
 
-export type WordFilterSettings = Settings & {
-    wordFilterList: string[];
-    urlFilterList: string[];
+export type NameFilterSettings = Settings & {
+    nameFilterList: string[];
+
 }
 
-export type DupliFilterSettings = Settings & {
-    duplicateMessagePerSeconds: number | null;
-    duplicateMessagePer10Seconds: number | null;
-    duplicateMessagePerMinutes: number | null;
-    isOnlySameContentMessage: boolean;
+export type JoinDelayFilterSettings = Settings & {
+    joinDelaySeconds: number | null;
 }
 
-export type ModerationFilterSettings = Settings & {
+export type MemberProfileModerationFilterSettings = Settings & {
     isUseCustomFlag: boolean;
     harassment: number | null;
     'harassment/threatening': number | null;
@@ -41,48 +34,38 @@ export type ModerationFilterSettings = Settings & {
     'sexual/minors': number | null;
     violence: number | null;
     'violence/graphic': number | null;
-    isFilterAppliedToContent: boolean;
-    isFilterAppliedToImage: boolean;
+    isFilterAppliedToName: boolean;
+    isFilterAppliedToIcon: boolean;
 }
 
-export type MesssegFilterSettings = {
-    wordFilterSettings: WordFilterSettings;
-    dupliFilterSettings: DupliFilterSettings;
-    moderationFilterSettings: ModerationFilterSettings;
+export type MemberFilterSettings = {
+    nameFilterSettings: NameFilterSettings;
+    joinDelayFilterSettings: JoinDelayFilterSettings;
+    memberProfileModerationFilterSettings: MemberProfileModerationFilterSettings;
 }
 
-export const baseSettings: Settings = {
+const baseSettings: Settings = {
     isEnabled: false,
-    channelIdList: [],
-    channelListType: "block",
     notificationChannelId: null,
     banUser: false,
     banReason: null,
-    deleteMessageSeconds: null,
     kickUser: false,
     kickReason: null,
     kickSeconds: null,
     giveRole: false,
     roleId: null,
-    deleteMessage: false,
-}
+};
 
-export const messageFilterDefaultSettings: MesssegFilterSettings = {
-    wordFilterSettings: {
+export const memberFilterDefaultSettings: MemberFilterSettings = {
+    nameFilterSettings: {
         ...baseSettings,
-        wordFilterList: [],
-        urlFilterList: [],
-        deleteMessage: false,
+        nameFilterList: [],
     },
-    dupliFilterSettings: {
+    joinDelayFilterSettings: {
         ...baseSettings,
-        duplicateMessagePerSeconds: null,
-        duplicateMessagePer10Seconds: null,
-        duplicateMessagePerMinutes: null,
-        isOnlySameContentMessage: true,
-        deleteMessage: false,
+        joinDelaySeconds: null,
     },
-    moderationFilterSettings: {
+    memberProfileModerationFilterSettings: {
         ...baseSettings,
         isUseCustomFlag: false,
         harassment: null,
@@ -98,8 +81,7 @@ export const messageFilterDefaultSettings: MesssegFilterSettings = {
         'sexual/minors': null,
         violence: null,
         'violence/graphic': null,
-        isFilterAppliedToContent: false,
-        isFilterAppliedToImage: false,
-        deleteMessage: false,
-    }
-}
+        isFilterAppliedToName: false,
+        isFilterAppliedToIcon: false,
+    },
+};
