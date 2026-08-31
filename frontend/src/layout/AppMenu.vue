@@ -75,6 +75,33 @@ const model = computed(() => [
                         to: '/filter/moderation'
                     }
                 ]
+            },
+            {
+                label: t('menu.memberFilter'),
+                icon: 'pi pi-fw pi-user-plus',
+                path: '/filter/member',
+                items: [
+                    {
+                        label: t('menu.memberJoinDb'),
+                        icon: 'pi pi-fw pi-database',
+                        to: '/filter/member/joins'
+                    },
+                    {
+                        label: t('menu.memberNameFilter'),
+                        icon: 'pi pi-fw pi-ban',
+                        to: '/filter/member/name'
+                    },
+                    {
+                        label: t('menu.memberJoinDelayFilter'),
+                        icon: 'pi pi-fw pi-clock',
+                        to: '/filter/member/join-delay'
+                    },
+                    {
+                        label: t('menu.memberProfileModerationFilter'),
+                        icon: 'pi pi-fw pi-shield',
+                        to: '/filter/member/profile-moderation'
+                    }
+                ]
             }
         ]
     },

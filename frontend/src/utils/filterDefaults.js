@@ -65,6 +65,49 @@ export function createModerationFilterSettings() {
     return settings;
 }
 
+export function createMemberBaseFilterSettings() {
+    return {
+        isEnabled: false,
+        notificationChannelId: null,
+        banUser: false,
+        banReason: null,
+        kickUser: false,
+        kickReason: null,
+        kickSeconds: null,
+        giveRole: false,
+        roleId: null
+    };
+}
+
+export function createMemberNameFilterSettings() {
+    return {
+        ...createMemberBaseFilterSettings(),
+        nameFilterList: []
+    };
+}
+
+export function createMemberJoinDelayFilterSettings() {
+    return {
+        ...createMemberBaseFilterSettings(),
+        joinDelaySeconds: null
+    };
+}
+
+export function createMemberProfileModerationFilterSettings() {
+    const settings = {
+        ...createMemberBaseFilterSettings(),
+        isUseCustomFlag: false,
+        isFilterAppliedToName: false,
+        isFilterAppliedToIcon: false
+    };
+
+    for (const category of MODERATION_CATEGORIES) {
+        settings[category.key] = null;
+    }
+
+    return settings;
+}
+
 export function linesToList(value) {
     return value
         .split('\n')

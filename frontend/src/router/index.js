@@ -58,6 +58,30 @@ const router = createRouter({
                     component: () => import('@/views/pages/filter/MessageDb.vue')
                 },
                 {
+                    path: '/filter/member',
+                    redirect: '/filter/member/joins'
+                },
+                {
+                    path: '/filter/member/joins',
+                    name: 'memberJoinDb',
+                    component: () => import('@/views/pages/filter/MemberJoinDb.vue')
+                },
+                {
+                    path: '/filter/member/name',
+                    name: 'memberNameFilter',
+                    component: () => import('@/views/pages/filter/MemberNameFilter.vue')
+                },
+                {
+                    path: '/filter/member/join-delay',
+                    name: 'memberJoinDelayFilter',
+                    component: () => import('@/views/pages/filter/MemberJoinDelayFilter.vue')
+                },
+                {
+                    path: '/filter/member/profile-moderation',
+                    name: 'memberProfileModerationFilter',
+                    component: () => import('@/views/pages/filter/MemberProfileModerationFilter.vue')
+                },
+                {
                     path: '/setting/admin-users',
                     name: 'adminUsers',
                     component: () => import('@/views/pages/setting/AdminUser.vue')
