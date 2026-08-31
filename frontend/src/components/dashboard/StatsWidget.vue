@@ -56,7 +56,7 @@ const activityText = computed(() => {
 </script>
 
 <template>
-    <div class="col-span-12 md:col-span-6 xl:col-span-4">
+    <div class="col-span-12 md:col-span-6 xl:col-span-3">
         <div class="card mb-0">
             <div class="flex justify-between mb-4">
                 <div class="min-w-0 flex-1 pr-3">

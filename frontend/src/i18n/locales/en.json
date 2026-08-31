@@ -20,7 +20,8 @@
     "moderationFilter": "Moderation Filter",
     "messageDb": "Message DB",
     "settings": "Settings",
-    "adminUsers": "Admin Users"
+    "adminUsers": "Admin Users",
+    "operationLogs": "Operation Logs"
   },
   "topbar": {
     "language": "Language",
@@ -46,13 +47,53 @@
     "online": "Online",
     "offline": "Offline",
     "loading": "Loading…",
+    "loadFailed": "Could not load dashboard data.",
     "fetchingStatus": "Fetching status…",
     "botUnavailable": "Bot unavailable",
     "botNotConnected": "Bot is not connected",
     "onlineMembers": "Online Members",
     "fetchingOnlineMembers": "Fetching online members…",
     "onlineMembersFailed": "Could not load online members",
-    "onlineMembersDetail": "Users currently online in this server"
+    "onlineMembersDetail": "Users currently online in this server",
+    "kpi": {
+      "totalMembers": "Total Members",
+      "totalMembersDetail": "Synced guild members (excluding bots)",
+      "onlineMembers": "Online",
+      "onlineMembersDetail": "Members currently online",
+      "todayJoins": "Joins Today",
+      "todayJoinsDetail": "Guild join events recorded today"
+    },
+    "joinTrend": {
+      "title": "Join Event Trend",
+      "description": "Joins and filter hits over the last 14 days",
+      "joins": "Joins",
+      "filteredJoins": "Filter hits"
+    },
+    "filterSummary": {
+      "title": "Filter Detection Summary",
+      "description": "Message and join filter detection status",
+      "messageTitle": "Message Filters",
+      "memberJoinTitle": "Join Filters",
+      "today": "Today",
+      "week": "7 days",
+      "pending": "Pending",
+      "pendingCount": "{count} pending",
+      "viewAll": "View all",
+      "word": "Word",
+      "dupli": "Duplicate",
+      "moderation": "Moderation",
+      "name": "Name",
+      "joinDelay": "Join delay",
+      "profileModeration": "Profile"
+    },
+    "recentActivity": {
+      "title": "Recent Activity",
+      "description": "Latest operation logs and filter detections",
+      "empty": "No recent activity.",
+      "typeOperationLog": "Operation log",
+      "typeMessageFilter": "Message detection",
+      "typeMemberJoinFilter": "Join detection"
+    }
   },
   "bot": {
     "presence": {
@@ -193,6 +234,40 @@
       "removeSuccess": "Admin user removed.",
       "removeFailed": "Could not remove the admin user.",
       "adminNotFound": "Admin user not found."
+    },
+    "operationLogs": {
+      "title": "Operation Logs",
+      "description": "View the history of manual admin actions (up to 500 entries).",
+      "searchPlaceholder": "Search summary, action, or user ID",
+      "occurredAt": "Time",
+      "actor": "Actor",
+      "actorType": "Actor type",
+      "actorAdmin": "Admin",
+      "actorBot": "Bot",
+      "category": "Category",
+      "categorySettings": "Settings",
+      "categoryMessage": "Message",
+      "categoryMemberJoin": "Member join",
+      "categoryAdminUser": "Admin user",
+      "action": "Action",
+      "summary": "Summary",
+      "result": "Result",
+      "success": "Success",
+      "failure": "Failure",
+      "successOnly": "Success only",
+      "failureOnly": "Failure only",
+      "source": "Source",
+      "sourceManual": "Manual",
+      "sourceAutomatic": "Automatic",
+      "target": "Target",
+      "errorMessage": "Error",
+      "metadata": "Metadata",
+      "logId": "Log ID",
+      "actions": "Actions",
+      "detailTitle": "Operation log details",
+      "empty": "No operation logs yet.",
+      "loading": "Loading operation logs.",
+      "loadFailed": "Could not fetch operation logs."
     }
   },
   "filter": {

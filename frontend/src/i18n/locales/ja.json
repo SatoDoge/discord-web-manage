@@ -20,7 +20,8 @@
     "moderationFilter": "モデレーションフィルター",
     "messageDb": "メッセージDB",
     "settings": "設定",
-    "adminUsers": "管理者ユーザー"
+    "adminUsers": "管理者ユーザー",
+    "operationLogs": "操作ログ"
   },
   "topbar": {
     "language": "言語",
@@ -46,13 +47,53 @@
     "online": "オンライン",
     "offline": "オフライン",
     "loading": "読み込み中…",
+    "loadFailed": "ダッシュボードデータを取得できませんでした。",
     "fetchingStatus": "ステータスを取得中…",
     "botUnavailable": "Botを利用できません",
     "botNotConnected": "Botは接続されていません",
     "onlineMembers": "オンラインメンバー",
     "fetchingOnlineMembers": "オンラインメンバーを取得中…",
     "onlineMembersFailed": "オンラインメンバーを取得できませんでした",
-    "onlineMembersDetail": "現在オンラインのサーバーメンバー数"
+    "onlineMembersDetail": "現在オンラインのサーバーメンバー数",
+    "kpi": {
+      "totalMembers": "総メンバー数",
+      "totalMembersDetail": "Bot同期済みのメンバー数（Bot除く）",
+      "onlineMembers": "オンライン数",
+      "onlineMembersDetail": "現在オンラインのメンバー数",
+      "todayJoins": "今日の参加数",
+      "todayJoinsDetail": "本日のサーバー参加イベント数"
+    },
+    "joinTrend": {
+      "title": "参加イベントの推移",
+      "description": "直近14日間の参加数とフィルター命中数",
+      "joins": "参加数",
+      "filteredJoins": "フィルター命中"
+    },
+    "filterSummary": {
+      "title": "フィルター検知サマリー",
+      "description": "メッセージ・参加イベントのフィルター検知状況",
+      "messageTitle": "メッセージフィルター",
+      "memberJoinTitle": "参加フィルター",
+      "today": "今日",
+      "week": "7日間",
+      "pending": "未対応",
+      "pendingCount": "未対応 {count}件",
+      "viewAll": "一覧へ",
+      "word": "ワード",
+      "dupli": "重複",
+      "moderation": "モデレーション",
+      "name": "名前",
+      "joinDelay": "参加遅延",
+      "profileModeration": "プロフィール"
+    },
+    "recentActivity": {
+      "title": "最近のアクティビティ",
+      "description": "操作ログ・フィルター検知の最新イベント",
+      "empty": "最近のアクティビティはありません。",
+      "typeOperationLog": "操作ログ",
+      "typeMessageFilter": "メッセージ検知",
+      "typeMemberJoinFilter": "参加検知"
+    }
   },
   "bot": {
     "presence": {
@@ -193,6 +234,40 @@
       "removeSuccess": "管理者を削除しました。",
       "removeFailed": "管理者を削除できませんでした。",
       "adminNotFound": "管理者が見つかりませんでした。"
+    },
+    "operationLogs": {
+      "title": "操作ログ",
+      "description": "管理者による手動操作の履歴を表示します（最大500件）。",
+      "searchPlaceholder": "要約・操作・ユーザーIDで検索",
+      "occurredAt": "日時",
+      "actor": "実行者",
+      "actorType": "実行者種別",
+      "actorAdmin": "管理者",
+      "actorBot": "Bot",
+      "category": "カテゴリ",
+      "categorySettings": "設定",
+      "categoryMessage": "メッセージ",
+      "categoryMemberJoin": "メンバー参加",
+      "categoryAdminUser": "管理者",
+      "action": "操作",
+      "summary": "要約",
+      "result": "結果",
+      "success": "成功",
+      "failure": "失敗",
+      "successOnly": "成功のみ",
+      "failureOnly": "失敗のみ",
+      "source": "実行元",
+      "sourceManual": "手動",
+      "sourceAutomatic": "自動",
+      "target": "対象",
+      "errorMessage": "エラー",
+      "metadata": "詳細データ",
+      "logId": "ログID",
+      "actions": "操作",
+      "detailTitle": "操作ログ詳細",
+      "empty": "操作ログはまだありません。",
+      "loading": "操作ログを読み込み中です。",
+      "loadFailed": "操作ログを取得できませんでした。"
     }
   },
   "filter": {

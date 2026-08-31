@@ -112,6 +112,11 @@ const model = computed(() => [
                 label: t('menu.adminUsers'),
                 icon: 'pi pi-fw pi-user-edit',
                 to: '/setting/admin-users'
+            },
+            {
+                label: t('menu.operationLogs'),
+                icon: 'pi pi-fw pi-history',
+                to: '/setting/operation-logs'
             }
         ]
     }

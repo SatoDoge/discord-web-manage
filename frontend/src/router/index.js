@@ -85,6 +85,11 @@ const router = createRouter({
                     path: '/setting/admin-users',
                     name: 'adminUsers',
                     component: () => import('@/views/pages/setting/AdminUser.vue')
+                },
+                {
+                    path: '/setting/operation-logs',
+                    name: 'operationLogs',
+                    component: () => import('@/views/pages/setting/OperationLog.vue')
                 }
             ]
         },
