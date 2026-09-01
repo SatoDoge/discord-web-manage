@@ -6,8 +6,10 @@ import {
   type RESTPostAPIChannelMessageJSONBody,
 } from 'discord.js';
 import { buildEmbeds } from '#server/discord/buildEmbeds.js';
+import { prepareMessageAttachments } from '#server/discord/messageAttachments.js';
 import { getDiscordClient } from '#server/discord.js';
 import type { DiscordEmbedInput } from '#server/discord/types/embedInput.js';
+import type { MessageAttachmentInput } from '#server/discord/types/messageAttachmentInput.js';
 import { Logger } from '#server/utils/logger.js';
 
 const logger = new Logger('discord/sendChannelMessage');
@@ -21,12 +23,16 @@ export type SendChannelMessageError =
   | 'too_many_embeds'
   | 'invalid_embed'
   | 'thread_name_required'
-  | 'invalid_thread_name';
+  | 'invalid_thread_name'
+  | 'too_many_attachments'
+  | 'attachment_too_large'
+  | 'invalid_attachment';
 
 export type SendChannelMessageInput = {
   channelId: string;
   content?: string;
   embeds?: DiscordEmbedInput[];
+  attachments?: MessageAttachmentInput[];
   /** Required when posting a new thread in a forum channel. */
   threadName?: string;
   reason?: string;
@@ -55,6 +61,13 @@ function normalizeContent(content: string | undefined): string | undefined {
   return trimmed && trimmed.length > 0 ? trimmed : undefined;
 }
 
+function toAttachmentPayloads(attachments: MessageAttachmentInput[]) {
+  return attachments.map((file) => ({
+    attachment: file.data,
+    name: file.filename,
+  }));
+}
+
 function normalizeThreadName(threadName: string | undefined): string | undefined {
   const trimmed = threadName?.trim();
   return trimmed && trimmed.length > 0 ? trimmed : undefined;
@@ -78,16 +91,22 @@ export async function sendChannelMessage(
 
   const content = normalizeContent(input.content);
   const embedInputs = input.embeds ?? [];
+  const attachmentInputs = input.attachments ?? [];
   const threadName = normalizeThreadName(input.threadName);
   const auditReason = input.reason?.trim() || undefined;
 
-  if (!content && embedInputs.length === 0) {
+  if (!content && embedInputs.length === 0 && attachmentInputs.length === 0) {
     return { ok: false, error: 'empty_content' };
   }
 
   const embedResult = buildEmbeds(embedInputs);
   if (!embedResult.ok) {
     return { ok: false, error: embedResult.error };
+  }
+
+  const attachmentResult = prepareMessageAttachments(attachmentInputs);
+  if (!attachmentResult.ok) {
+    return { ok: false, error: attachmentResult.error };
   }
 
   let channel;
@@ -109,6 +128,7 @@ export async function sendChannelMessage(
   }
 
   const embeds = embedResult.embeds;
+  const restFiles = attachmentResult.restFiles;
   const messagePayload: RESTPostAPIChannelMessageJSONBody = {
     content,
     embeds: embeds.map((embed) => embed.toJSON()),
@@ -128,6 +148,7 @@ export async function sendChannelMessage(
         message: {
           content,
           embeds,
+          files: toAttachmentPayloads(attachmentResult.attachments),
         },
         reason: auditReason,
       });
@@ -167,6 +188,7 @@ export async function sendChannelMessage(
       case ChannelType.AnnouncementThread: {
         const message = (await client.rest.post(Routes.channelMessages(channel.id), {
           body: messagePayload,
+          files: restFiles.length > 0 ? restFiles : undefined,
           reason: auditReason,
         })) as APIMessage;
 

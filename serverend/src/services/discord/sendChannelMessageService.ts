@@ -4,6 +4,8 @@ import {
   type SendChannelMessageSuccess,
 } from '#server/discord/sendChannelMessage.js';
 import type { DiscordEmbedInput } from '#server/discord/types/embedInput.js';
+import type { MessageAttachmentInput } from '#server/discord/types/messageAttachmentInput.js';
+import { recordBotPostedMessage } from '#server/services/botPostedMessage/recordBotPostedMessage.js';
 import { recordAuthenticatedAdminOperation } from '#server/services/operationLog/recordAdminOperation.js';
 import type { AuthenticatedServiceContext } from '#server/types/authenticatedService.js';
 
@@ -18,7 +20,10 @@ export type SendChannelMessageServiceResult =
         | SendChannelMessageError
         | 'invalid_channel_id'
         | 'invalid_body'
-        | 'invalid_embeds';
+        | 'invalid_embeds'
+        | 'too_many_attachments'
+        | 'attachment_too_large'
+        | 'invalid_attachment';
     };
 
 const SNOWFLAKE_RE = /^\d{17,20}$/;
@@ -85,6 +90,7 @@ export async function postChannelMessage(
     embeds?: unknown;
     threadName?: unknown;
     reason?: unknown;
+    attachments?: MessageAttachmentInput[];
   },
   context: AuthenticatedServiceContext,
 ): Promise<SendChannelMessageServiceResult> {
@@ -105,12 +111,14 @@ export async function postChannelMessage(
   const content = typeof body.content === 'string' ? body.content : undefined;
   const threadName = typeof body.threadName === 'string' ? body.threadName : undefined;
   const reason = typeof body.reason === 'string' ? body.reason : undefined;
+  const attachments = body.attachments ?? [];
 
-  if (!content?.trim() && embeds.length === 0) {
+  if (!content?.trim() && embeds.length === 0 && attachments.length === 0) {
     recordFailure(context, 'empty_content', {
       channelId: body.channelId,
       hasContent: Boolean(content),
       embedCount: embeds.length,
+      attachmentCount: attachments.length,
     });
     return { ok: false, status: 400, error: 'empty_content' };
   }
@@ -119,6 +127,7 @@ export async function postChannelMessage(
     channelId: body.channelId,
     content,
     embeds,
+    attachments,
     threadName,
     reason,
   });
@@ -151,8 +160,22 @@ export async function postChannelMessage(
       threadName: threadName?.trim() || null,
       embedCount: embeds.length,
       hasContent: Boolean(content?.trim()),
+      attachmentCount: attachments.length,
       reason: reason?.trim() || null,
     },
+  });
+
+  await recordBotPostedMessage({
+    messageId: result.data.messageId,
+    channelId: result.data.threadId ?? result.data.channelId,
+    threadId: result.data.threadId ?? null,
+    sendMode: 'send',
+    forumThreadName: threadName?.trim() || null,
+    content,
+    embeds,
+    attachments,
+    postedByUserId: context.actorUserId,
+    reason,
   });
 
   return { ok: true, data: result.data };

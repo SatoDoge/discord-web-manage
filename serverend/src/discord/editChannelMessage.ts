@@ -2,19 +2,21 @@ import {
   ChannelType,
   DiscordAPIError,
   Routes,
-  type APIMessage,
-  type RESTPostAPIChannelMessageJSONBody,
+  type RESTPatchAPIChannelMessageJSONBody,
 } from 'discord.js';
 import { buildEmbeds } from '#server/discord/buildEmbeds.js';
-import { prepareMessageAttachments } from '#server/discord/messageAttachments.js';
 import { getDiscordClient } from '#server/discord.js';
+import {
+  prepareMessageAttachments,
+  type MessageAttachmentError,
+} from '#server/discord/messageAttachments.js';
 import type { DiscordEmbedInput } from '#server/discord/types/embedInput.js';
 import type { MessageAttachmentInput } from '#server/discord/types/messageAttachmentInput.js';
 import { Logger } from '#server/utils/logger.js';
 
-const logger = new Logger('discord/replyChannelMessage');
+const logger = new Logger('discord/editChannelMessage');
 
-export type ReplyChannelMessageError =
+export type EditChannelMessageError =
   | 'bot_not_connected'
   | 'channel_not_found'
   | 'channel_not_messageable'
@@ -23,31 +25,22 @@ export type ReplyChannelMessageError =
   | 'empty_content'
   | 'too_many_embeds'
   | 'invalid_embed'
-  | 'too_many_attachments'
-  | 'attachment_too_large'
-  | 'invalid_attachment';
+  | MessageAttachmentError;
 
-export type ReplyChannelMessageInput = {
+export type EditChannelMessageInput = {
   channelId: string;
   messageId: string;
   content?: string;
   embeds?: DiscordEmbedInput[];
+  /** When true, existing Discord attachments are cleared and replaced with `attachments`. */
+  replaceAttachments?: boolean;
   attachments?: MessageAttachmentInput[];
-  /** When true, the request fails if the referenced message no longer exists. */
-  failIfNotExists?: boolean;
   reason?: string;
 };
 
-export type ReplyChannelMessageSuccess = {
-  messageId: string;
-  channelId: string;
-  referencedMessageId: string;
-  threadId?: string;
-};
-
-export type ReplyChannelMessageResult =
-  | { ok: true; data: ReplyChannelMessageSuccess }
-  | { ok: false; error: ReplyChannelMessageError };
+export type EditChannelMessageResult =
+  | { ok: true }
+  | { ok: false; error: EditChannelMessageError };
 
 function isUnknownChannel(error: unknown): boolean {
   return error instanceof DiscordAPIError && error.code === 10003;
@@ -66,7 +59,7 @@ function normalizeContent(content: string | undefined): string | undefined {
   return trimmed && trimmed.length > 0 ? trimmed : undefined;
 }
 
-function isReplyableChannelType(type: ChannelType): boolean {
+function isEditableChannelType(type: ChannelType): boolean {
   return (
     type === ChannelType.GuildText ||
     type === ChannelType.GuildAnnouncement ||
@@ -77,13 +70,13 @@ function isReplyableChannelType(type: ChannelType): boolean {
 }
 
 /**
- * Reply to a specific message in a guild text channel or thread.
+ * Edit a bot message in a guild text channel or thread.
  *
- * @see https://docs.discord.com/developers/resources/channel#create-message
+ * @see https://docs.discord.com/developers/resources/channel#edit-message
  */
-export async function replyChannelMessage(
-  input: ReplyChannelMessageInput,
-): Promise<ReplyChannelMessageResult> {
+export async function editChannelMessage(
+  input: EditChannelMessageInput,
+): Promise<EditChannelMessageResult> {
   const client = getDiscordClient();
   if (!client?.isReady()) {
     logger.error('Discord client is not ready');
@@ -92,11 +85,19 @@ export async function replyChannelMessage(
 
   const content = normalizeContent(input.content);
   const embedInputs = input.embeds ?? [];
-  const attachmentInputs = input.attachments ?? [];
   const auditReason = input.reason?.trim() || undefined;
-  const failIfNotExists = input.failIfNotExists ?? true;
+  const replaceAttachments = input.replaceAttachments === true;
+  const attachmentInputs = replaceAttachments ? (input.attachments ?? []) : [];
 
-  if (!content && embedInputs.length === 0 && attachmentInputs.length === 0) {
+  if (!content && embedInputs.length === 0 && !replaceAttachments) {
+    return { ok: false, error: 'empty_content' };
+  }
+  if (
+    !content &&
+    embedInputs.length === 0 &&
+    replaceAttachments &&
+    attachmentInputs.length === 0
+  ) {
     return { ok: false, error: 'empty_content' };
   }
 
@@ -105,8 +106,10 @@ export async function replyChannelMessage(
     return { ok: false, error: embedResult.error };
   }
 
-  const attachmentResult = prepareMessageAttachments(attachmentInputs);
-  if (!attachmentResult.ok) {
+  const attachmentResult = replaceAttachments
+    ? prepareMessageAttachments(attachmentInputs)
+    : null;
+  if (attachmentResult && !attachmentResult.ok) {
     return { ok: false, error: attachmentResult.error };
   }
 
@@ -124,43 +127,30 @@ export async function replyChannelMessage(
   if (!channel) {
     return { ok: false, error: 'channel_not_found' };
   }
-  if (channel.isDMBased() || !channel.isTextBased() || !isReplyableChannelType(channel.type)) {
+  if (channel.isDMBased() || !channel.isTextBased() || !isEditableChannelType(channel.type)) {
     return { ok: false, error: 'channel_not_messageable' };
   }
 
-  const embeds = embedResult.embeds;
-  const restFiles = attachmentResult.restFiles;
-  const messagePayload: RESTPostAPIChannelMessageJSONBody = {
+  const messagePayload: RESTPatchAPIChannelMessageJSONBody = {
     content,
-    embeds: embeds.map((embed) => embed.toJSON()),
-    message_reference: {
-      message_id: input.messageId,
-      channel_id: input.channelId,
-      fail_if_not_exists: failIfNotExists,
-    },
+    embeds: embedResult.embeds.map((embed) => embed.toJSON()),
   };
+  if (replaceAttachments) {
+    messagePayload.attachments = [];
+  }
+
+  const restFiles =
+    attachmentResult && attachmentResult.restFiles.length > 0
+      ? attachmentResult.restFiles
+      : undefined;
 
   try {
-    const message = (await client.rest.post(Routes.channelMessages(channel.id), {
+    await client.rest.patch(Routes.channelMessage(channel.id, input.messageId), {
       body: messagePayload,
-      files: restFiles.length > 0 ? restFiles : undefined,
+      files: restFiles,
       reason: auditReason,
-    })) as APIMessage;
-
-    const isThread =
-      channel.type === ChannelType.PublicThread ||
-      channel.type === ChannelType.PrivateThread ||
-      channel.type === ChannelType.AnnouncementThread;
-
-    return {
-      ok: true,
-      data: {
-        messageId: message.id,
-        channelId: message.channel_id,
-        referencedMessageId: input.messageId,
-        threadId: isThread ? channel.id : undefined,
-      },
-    };
+    });
+    return { ok: true };
   } catch (error) {
     if (isUnknownMessage(error)) {
       return { ok: false, error: 'message_not_found' };
@@ -169,7 +159,7 @@ export async function replyChannelMessage(
       return { ok: false, error: 'missing_permission' };
     }
     logger.error(
-      `Failed to reply to message ${input.messageId} in channel ${input.channelId}: ${String(error)}`,
+      `Failed to edit message ${input.messageId} in channel ${input.channelId}: ${String(error)}`,
     );
     throw error;
   }

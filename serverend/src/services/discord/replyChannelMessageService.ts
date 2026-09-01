@@ -4,6 +4,8 @@ import {
   type ReplyChannelMessageSuccess,
 } from '#server/discord/replyChannelMessage.js';
 import type { DiscordEmbedInput } from '#server/discord/types/embedInput.js';
+import type { MessageAttachmentInput } from '#server/discord/types/messageAttachmentInput.js';
+import { recordBotPostedMessage } from '#server/services/botPostedMessage/recordBotPostedMessage.js';
 import { recordAuthenticatedAdminOperation } from '#server/services/operationLog/recordAdminOperation.js';
 import type { AuthenticatedServiceContext } from '#server/types/authenticatedService.js';
 
@@ -19,7 +21,10 @@ export type ReplyChannelMessageServiceResult =
         | 'invalid_channel_id'
         | 'invalid_message_id'
         | 'invalid_embeds'
-        | 'invalid_fail_if_not_exists';
+        | 'invalid_fail_if_not_exists'
+        | 'too_many_attachments'
+        | 'attachment_too_large'
+        | 'invalid_attachment';
     };
 
 const SNOWFLAKE_RE = /^\d{17,20}$/;
@@ -88,6 +93,7 @@ export async function postChannelMessageReply(
     embeds?: unknown;
     failIfNotExists?: unknown;
     reason?: unknown;
+    attachments?: MessageAttachmentInput[];
   },
   context: AuthenticatedServiceContext,
 ): Promise<ReplyChannelMessageServiceResult> {
@@ -129,13 +135,15 @@ export async function postChannelMessageReply(
   const reason = typeof body.reason === 'string' ? body.reason : undefined;
   const failIfNotExists =
     typeof body.failIfNotExists === 'boolean' ? body.failIfNotExists : undefined;
+  const attachments = body.attachments ?? [];
 
-  if (!content?.trim() && embeds.length === 0) {
+  if (!content?.trim() && embeds.length === 0 && attachments.length === 0) {
     recordFailure(context, 'empty_content', {
       channelId: body.channelId,
       messageId: body.messageId,
       hasContent: Boolean(content),
       embedCount: embeds.length,
+      attachmentCount: attachments.length,
     });
     return { ok: false, status: 400, error: 'empty_content' };
   }
@@ -145,6 +153,7 @@ export async function postChannelMessageReply(
     messageId: body.messageId,
     content,
     embeds,
+    attachments,
     failIfNotExists,
     reason,
   });
@@ -178,9 +187,23 @@ export async function postChannelMessageReply(
       threadId: result.data.threadId ?? null,
       embedCount: embeds.length,
       hasContent: Boolean(content?.trim()),
+      attachmentCount: attachments.length,
       failIfNotExists: failIfNotExists ?? true,
       reason: reason?.trim() || null,
     },
+  });
+
+  await recordBotPostedMessage({
+    messageId: result.data.messageId,
+    channelId: result.data.channelId,
+    threadId: result.data.threadId ?? null,
+    sendMode: 'reply',
+    referencedMessageId: result.data.referencedMessageId,
+    content,
+    embeds,
+    attachments,
+    postedByUserId: context.actorUserId,
+    reason,
   });
 
   return { ok: true, data: result.data };

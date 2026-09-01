@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import auth from '#server/routes/auth.js';
+import botPostedMessage from '#server/routes/botPostedMessage.js';
 import dashboard from '#server/routes/dashboard.js';
 import discord from '#server/routes/discord.js';
 import filter from '#server/routes/filter.js';
@@ -9,6 +10,7 @@ import message from '#server/routes/message.js';
 import operationLog from '#server/routes/operationLog.js';
 import user from '#server/routes/user.js';
 import utils from '#server/routes/utils.js';
+import { registerStaticAssets } from '#server/staticAssets.js';
 import { Logger } from '#server/utils/logger.js';
 /**
  * HTTP API for the Vue frontend.
@@ -37,12 +39,15 @@ export function createApp() {
   app.route('/api/dashboard', dashboard);
   app.route('/api/user', user);
   app.route('/api/discord', discord);
+  app.route('/api/bot-messages', botPostedMessage);
   app.route('/api/filter', filter);
   app.route('/api/message', message);
   app.route('/api/member-join', memberJoin);
   app.route('/api/operation-logs', operationLog);
   app.route('/api', utils);
-  
+
+  registerStaticAssets(app);
+
   logger.info('App created');
   logger.info('Available routes:');   
   app.routes.forEach((route) => {

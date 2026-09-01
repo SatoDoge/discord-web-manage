@@ -1,5 +1,6 @@
 <script setup>
 import DiscordEmbedPreview from '@/components/manage/DiscordEmbedPreview.vue';
+import { useMessageAttachments } from '@/composables/useMessageAttachments';
 import { DEFAULT_EMBED_TEMPLATE, parseEmbedJsonInput } from '@/utils/discordEmbed';
 import { parseDiscordMessageTarget } from '@/utils/discordMessageTarget';
 import { useToast } from 'primevue/usetoast';
@@ -8,6 +9,19 @@ import { useI18n } from 'vue-i18n';
 
 const { t } = useI18n();
 const toast = useToast();
+const {
+    attachments,
+    attachmentCount,
+    hasAttachments,
+    maxAttachments,
+    addFiles,
+    removeAttachment,
+    clearAttachments,
+    handlePaste,
+    formatFileSize
+} = useMessageAttachments();
+
+const fileInputRef = ref(null);
 
 const CHANNEL_TYPE = {
     GuildText: 0,
@@ -144,9 +158,9 @@ const canSend = computed(() => {
     }
 
     if (messageForm.format === 'text') {
-        return Boolean(messageForm.content.trim());
+        return Boolean(messageForm.content.trim()) || hasAttachments.value;
     }
-    return parsedEmbeds.value.ok;
+    return parsedEmbeds.value.ok || hasAttachments.value;
 });
 
 function channelTypeKey(type) {
@@ -185,6 +199,85 @@ function resetMessageForm() {
     messageForm.format = 'text';
     messageForm.content = '';
     messageForm.embedJson = DEFAULT_EMBED_TEMPLATE;
+    clearAttachments();
+}
+
+function attachmentErrorMessage(error) {
+    const key = `manage.send.attachmentErrors.${error}`;
+    const translated = t(key);
+    return translated === key ? t('manage.send.attachmentAddFailed') : translated;
+}
+
+function notifyAttachmentResult(result) {
+    if (!result?.ok) {
+        toast.add({
+            severity: 'warn',
+            summary: t('toast.validation'),
+            detail: attachmentErrorMessage(result.error),
+            life: 4000
+        });
+        return;
+    }
+    if (result.truncated) {
+        toast.add({
+            severity: 'info',
+            summary: t('manage.send.attachmentsTruncated'),
+            detail: t('manage.send.attachmentsTruncatedDetail', { max: maxAttachments }),
+            life: 4000
+        });
+    }
+}
+
+function openFilePicker() {
+    fileInputRef.value?.click();
+}
+
+function onFileInputChange(event) {
+    const result = addFiles(event.target.files);
+    notifyAttachmentResult(result);
+    event.target.value = '';
+}
+
+function onMessagePaste(event) {
+    const result = handlePaste(event);
+    if (result) {
+        notifyAttachmentResult(result);
+    }
+}
+
+function buildFormData() {
+    const formData = new FormData();
+    const reason = destinationForm.reason.trim();
+
+    if (reason) {
+        formData.append('reason', reason);
+    }
+
+    if (messageForm.format === 'text') {
+        const content = messageForm.content.trim();
+        if (content) {
+            formData.append('content', content);
+        }
+    } else if (parsedEmbeds.value.ok) {
+        formData.append('embeds', JSON.stringify(parsedEmbeds.value.payload));
+    }
+
+    if (isReplyMode.value && parsedReplyTarget.value.ok) {
+        formData.append('channelId', parsedReplyTarget.value.channelId);
+        formData.append('messageId', parsedReplyTarget.value.messageId);
+        formData.append('failIfNotExists', 'true');
+    } else {
+        formData.append('channelId', destinationForm.channelId);
+        if (showThreadName.value) {
+            formData.append('threadName', destinationForm.threadName.trim());
+        }
+    }
+
+    for (const entry of attachments.value) {
+        formData.append('attachments', entry.file);
+    }
+
+    return formData;
 }
 
 function resetDestinationForm() {
@@ -281,11 +374,12 @@ async function sendMessage() {
     sending.value = true;
     try {
         const endpoint = isReplyMode.value ? '/api/discord/messages/reply' : '/api/discord/messages/send';
+        const useMultipart = hasAttachments.value;
         const response = await fetch(endpoint, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
-            body: JSON.stringify(buildPayload())
+            headers: useMultipart ? undefined : { 'Content-Type': 'application/json' },
+            body: useMultipart ? buildFormData() : JSON.stringify(buildPayload())
         });
 
         const data = await response.json().catch(() => ({}));
@@ -303,6 +397,7 @@ async function sendMessage() {
         if (messageForm.format === 'text') {
             messageForm.content = '';
         }
+        clearAttachments();
         if (isReplyMode.value) {
             destinationForm.replyTarget = '';
         }
@@ -421,10 +516,63 @@ onMounted(() => {
             </div>
 
             <div class="grid grid-cols-12 gap-8">
-                <div class="col-span-12 xl:col-span-6 card flex flex-col gap-6">
+                <div class="col-span-12 xl:col-span-6 card flex flex-col gap-6" @paste="onMessagePaste">
                     <div>
                         <div class="font-semibold text-xl">{{ t('manage.send.messageSection') }}</div>
                         <p class="text-muted-color m-0 mt-1">{{ t('manage.send.messageSectionDescription') }}</p>
+                    </div>
+
+                    <div class="flex flex-col gap-2">
+                        <div class="flex flex-wrap items-center justify-between gap-2">
+                            <label>{{ t('manage.send.attachments') }}</label>
+                            <span class="text-muted-color text-sm">
+                                {{ t('manage.send.attachmentCount', { count: attachmentCount, max: maxAttachments }) }}
+                            </span>
+                        </div>
+                        <input
+                            ref="fileInputRef"
+                            type="file"
+                            class="hidden"
+                            multiple
+                            :disabled="sending || attachmentCount >= maxAttachments"
+                            @change="onFileInputChange"
+                        />
+                        <div class="flex flex-wrap gap-2">
+                            <Button
+                                :label="t('manage.send.addAttachment')"
+                                icon="pi pi-paperclip"
+                                severity="secondary"
+                                outlined
+                                :disabled="sending || attachmentCount >= maxAttachments"
+                                @click="openFilePicker"
+                            />
+                        </div>
+                        <small class="text-muted-color">{{ t('manage.send.attachmentPasteHint') }}</small>
+                        <div v-if="attachments.length" class="attachment-list">
+                            <div v-for="entry in attachments" :key="entry.id" class="attachment-item">
+                                <img
+                                    v-if="entry.previewUrl"
+                                    :src="entry.previewUrl"
+                                    :alt="entry.file.name"
+                                    class="attachment-thumb"
+                                />
+                                <div v-else class="attachment-file-icon">
+                                    <i class="pi pi-file" />
+                                </div>
+                                <div class="attachment-meta min-w-0">
+                                    <div class="attachment-name">{{ entry.file.name }}</div>
+                                    <div class="text-muted-color text-sm">{{ formatFileSize(entry.file.size) }}</div>
+                                </div>
+                                <Button
+                                    icon="pi pi-times"
+                                    severity="danger"
+                                    text
+                                    rounded
+                                    :disabled="sending"
+                                    @click="removeAttachment(entry.id)"
+                                />
+                            </div>
+                        </div>
                     </div>
 
                     <div class="flex flex-col gap-2">
@@ -512,13 +660,32 @@ onMounted(() => {
                         <Message v-if="previewError" severity="warn" :closable="false">
                             {{ previewError }}
                         </Message>
-                        <div v-else-if="messageForm.format === 'text' && !messageForm.content.trim()" class="preview-empty">
-                            {{ t('manage.send.previewEmptyText') }}
-                        </div>
                         <div v-else-if="messageForm.format === 'embed' && !messageForm.embedJson.trim()" class="preview-empty">
                             {{ t('manage.send.previewEmptyEmbed') }}
                         </div>
-                        <DiscordEmbedPreview v-else :content="previewContent" :embeds="previewEmbeds" />
+                        <div v-else-if="!previewContent && !previewEmbeds.length && !attachments.length" class="preview-empty">
+                            {{ t('manage.send.previewEmptyText') }}
+                        </div>
+                        <template v-else>
+                            <DiscordEmbedPreview :content="previewContent" :embeds="previewEmbeds" />
+                            <div v-if="attachments.length" class="preview-attachments">
+                                <div class="font-medium text-sm mb-2">{{ t('manage.send.attachments') }}</div>
+                                <div class="attachment-preview-grid">
+                                    <div v-for="entry in attachments" :key="entry.id" class="attachment-preview-item">
+                                        <img
+                                            v-if="entry.previewUrl"
+                                            :src="entry.previewUrl"
+                                            :alt="entry.file.name"
+                                            class="attachment-preview-image"
+                                        />
+                                        <div v-else class="attachment-preview-file">
+                                            <i class="pi pi-file" />
+                                            <span>{{ entry.file.name }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
                     </div>
                 </div>
             </div>
@@ -546,5 +713,72 @@ onMounted(() => {
 .preview-empty {
     color: #b5bac1;
     font-style: italic;
+}
+
+.attachment-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.attachment-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--surface-border);
+    border-radius: 8px;
+}
+
+.attachment-thumb {
+    width: 3rem;
+    height: 3rem;
+    object-fit: cover;
+    border-radius: 6px;
+    flex-shrink: 0;
+}
+
+.attachment-file-icon {
+    width: 3rem;
+    height: 3rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    background: var(--surface-100);
+    flex-shrink: 0;
+}
+
+.attachment-name {
+    word-break: break-all;
+}
+
+.preview-attachments {
+    margin-top: 0.75rem;
+}
+
+.attachment-preview-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.attachment-preview-item {
+    max-width: 12rem;
+}
+
+.attachment-preview-image {
+    max-width: 12rem;
+    max-height: 12rem;
+    border-radius: 6px;
+    object-fit: contain;
+}
+
+.attachment-preview-file {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #dbdee1;
+    word-break: break-all;
 }
 </style>

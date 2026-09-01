@@ -23,17 +23,17 @@ const model = computed(() => [
                 label: t('menu.status'),
                 icon: 'pi pi-fw pi-discord',
                 to: '/bot/status'
-            },
-            {
-                label: t('menu.activity'),
-                icon: 'pi pi-fw pi-sliders-h',
-                to: '/bot/activity'
             }
         ]
     },
     {
         label: t('menu.manage'),
         items: [
+            {
+                label: t('menu.activity'),
+                icon: 'pi pi-fw pi-sliders-h',
+                to: '/manage/activity'
+            },
             {
                 label: t('menu.users'),
                 icon: 'pi pi-fw pi-users',
@@ -48,6 +48,11 @@ const model = computed(() => [
                 label: t('menu.messageSend'),
                 icon: 'pi pi-fw pi-send',
                 to: '/manage/message-send'
+            },
+            {
+                label: t('menu.botPostedMessages'),
+                icon: 'pi pi-fw pi-inbox',
+                to: '/manage/bot-messages'
             }
         ]
     },

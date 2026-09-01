@@ -20,8 +20,7 @@ const router = createRouter({
                 },
                 {
                     path: '/bot/activity',
-                    name: 'botActivity',
-                    component: () => import('@/views/pages/bot/Activity.vue')
+                    redirect: '/manage/activity'
                 },
                 {
                     path: '/manage/users',
@@ -37,6 +36,16 @@ const router = createRouter({
                     path: '/manage/message-send',
                     name: 'messageSend',
                     component: () => import('@/views/pages/manage/MessageSend.vue')
+                },
+                {
+                    path: '/manage/bot-messages',
+                    name: 'botPostedMessages',
+                    component: () => import('@/views/pages/manage/BotPostedMessages.vue')
+                },
+                {
+                    path: '/manage/activity',
+                    name: 'botActivity',
+                    component: () => import('@/views/pages/manage/Activity.vue')
                 },
                 {
                     path: '/filter',

@@ -17,6 +17,7 @@ import { fetchOnlineMemberList } from '#server/services/discord/getOnlineMember.
 import { kickMembers } from '#server/services/discord/kickMemberService.js';
 import { postChannelMessage } from '#server/services/discord/sendChannelMessageService.js';
 import { postChannelMessageReply } from '#server/services/discord/replyChannelMessageService.js';
+import { readMessagePostBody } from '#server/services/discord/readMessagePostBody.js';
 import { searchGuildMessages } from '#server/services/discord/searchMessageService.js';
 import {
   applyPresenceUpdate,
@@ -214,20 +215,15 @@ discord.post('/messages/search', async (c) => {
 
 /** Post a message and/or embeds to a text channel, thread, or forum channel. */
 discord.post('/messages/send', async (c) => {
-  let body: {
-    channelId?: unknown;
-    content?: unknown;
-    embeds?: unknown;
-    threadName?: unknown;
-    reason?: unknown;
-  };
-  try {
-    body = await c.req.json();
-  } catch {
-    return c.json({ error: 'invalid_body' }, 400);
+  const parsed = await readMessagePostBody(c);
+  if (!parsed.ok) {
+    return c.json(
+      { error: parsed.error },
+      parsed.status as ContentfulStatusCode,
+    );
   }
 
-  const result = await postChannelMessage(body, {
+  const result = await postChannelMessage(parsed.body, {
     actorUserId: c.get('userId'),
   });
   if (!result.ok) {
@@ -242,21 +238,15 @@ discord.post('/messages/send', async (c) => {
 
 /** Reply to a specific message in a text channel or thread. */
 discord.post('/messages/reply', async (c) => {
-  let body: {
-    channelId?: unknown;
-    messageId?: unknown;
-    content?: unknown;
-    embeds?: unknown;
-    failIfNotExists?: unknown;
-    reason?: unknown;
-  };
-  try {
-    body = await c.req.json();
-  } catch {
-    return c.json({ error: 'invalid_body' }, 400);
+  const parsed = await readMessagePostBody(c);
+  if (!parsed.ok) {
+    return c.json(
+      { error: parsed.error },
+      parsed.status as ContentfulStatusCode,
+    );
   }
 
-  const result = await postChannelMessageReply(body, {
+  const result = await postChannelMessageReply(parsed.body, {
     actorUserId: c.get('userId'),
   });
   if (!result.ok) {
