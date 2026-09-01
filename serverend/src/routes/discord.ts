@@ -15,6 +15,8 @@ import {
 } from '#server/services/discord/getMemberProfileService.js';
 import { fetchOnlineMemberList } from '#server/services/discord/getOnlineMember.js';
 import { kickMembers } from '#server/services/discord/kickMemberService.js';
+import { postChannelMessage } from '#server/services/discord/sendChannelMessageService.js';
+import { postChannelMessageReply } from '#server/services/discord/replyChannelMessageService.js';
 import { searchGuildMessages } from '#server/services/discord/searchMessageService.js';
 import {
   applyPresenceUpdate,
@@ -205,6 +207,63 @@ discord.post('/messages/search', async (c) => {
       payload.retry_after = result.retryAfter;
     }
     return c.json(payload, result.status as ContentfulStatusCode);
+  }
+
+  return c.json(result.data);
+});
+
+/** Post a message and/or embeds to a text channel, thread, or forum channel. */
+discord.post('/messages/send', async (c) => {
+  let body: {
+    channelId?: unknown;
+    content?: unknown;
+    embeds?: unknown;
+    threadName?: unknown;
+    reason?: unknown;
+  };
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: 'invalid_body' }, 400);
+  }
+
+  const result = await postChannelMessage(body, {
+    actorUserId: c.get('userId'),
+  });
+  if (!result.ok) {
+    return c.json(
+      { error: result.error },
+      result.status as ContentfulStatusCode,
+    );
+  }
+
+  return c.json(result.data);
+});
+
+/** Reply to a specific message in a text channel or thread. */
+discord.post('/messages/reply', async (c) => {
+  let body: {
+    channelId?: unknown;
+    messageId?: unknown;
+    content?: unknown;
+    embeds?: unknown;
+    failIfNotExists?: unknown;
+    reason?: unknown;
+  };
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: 'invalid_body' }, 400);
+  }
+
+  const result = await postChannelMessageReply(body, {
+    actorUserId: c.get('userId'),
+  });
+  if (!result.ok) {
+    return c.json(
+      { error: result.error },
+      result.status as ContentfulStatusCode,
+    );
   }
 
   return c.json(result.data);

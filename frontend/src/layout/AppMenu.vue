@@ -43,6 +43,11 @@ const model = computed(() => [
                 label: t('menu.messages'),
                 icon: 'pi pi-fw pi-comments',
                 to: '/manage/messages'
+            },
+            {
+                label: t('menu.messageSend'),
+                icon: 'pi pi-fw pi-send',
+                to: '/manage/message-send'
             }
         ]
     },

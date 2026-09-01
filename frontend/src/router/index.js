@@ -34,6 +34,11 @@ const router = createRouter({
                     component: () => import('@/views/pages/manage/MessageList.vue')
                 },
                 {
+                    path: '/manage/message-send',
+                    name: 'messageSend',
+                    component: () => import('@/views/pages/manage/MessageSend.vue')
+                },
+                {
                     path: '/filter',
                     redirect: '/filter/messages'
                 },
