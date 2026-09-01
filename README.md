@@ -52,7 +52,18 @@ npm run dev
 
 `REDIRECT_URI` は `http://localhost:5174/auth/redirect` に設定してください。
 
-### 3. Docker（本番向け・単一ポート）
+### 3. 本番モード（ビルド + 単一ポート）
+
+```bash
+npm run build
+npm run start
+```
+
+- Web UI + API: http://localhost:3000
+- `frontend/dist` を serverend が自動配信（`SERVE_STATIC` の設定不要）
+- `REDIRECT_URI` は `http://localhost:3000/auth/redirect` に変更
+
+### 4. Docker
 
 ```bash
 cp .env.example .env

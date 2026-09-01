@@ -26,7 +26,6 @@ FROM node:20-bookworm-slim AS production
 WORKDIR /app
 
 ENV NODE_ENV=production
-ENV SERVE_STATIC=true
 ENV PORT=3000
 
 COPY package.json package-lock.json ./

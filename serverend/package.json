@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "imports": {
-    "#server/*": "./src/*"
+    "#server/*": "./dist/*"
   },
   "scripts": {
     "dev": "tsx watch src/main.ts",

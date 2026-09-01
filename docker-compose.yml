@@ -6,7 +6,6 @@ services:
     env_file:
       - .env
     environment:
-      SERVE_STATIC: "true"
       PORT: "3000"
     volumes:
       - app-data:/app/serverend/data

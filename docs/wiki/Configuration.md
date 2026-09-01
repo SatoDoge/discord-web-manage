@@ -7,7 +7,7 @@
 | 変数 | 必須 | デフォルト | 説明 |
 |---|---|---|---|
 | `PORT` | 否 | `3000` | API / Bot プロセスの待ち受けポート |
-| `SERVE_STATIC` | 否 | 未設定 | `true` のときビルド済み Vue を同一ポートで配信（Docker 向け） |
+| `SERVE_STATIC` | 否 | 自動 | `false` で明示無効化。本番（`node dist`）では `frontend/dist` を自動配信 |
 
 ## Discord OAuth2（Web ログイン）
 
@@ -37,10 +37,11 @@
 
 ## 開発 vs Docker での `REDIRECT_URI`
 
-| 環境 | `REDIRECT_URI` | `SERVE_STATIC` |
+| 環境 | `REDIRECT_URI` | 静的配信 |
 |---|---|---|
-| `npm run dev` | `http://localhost:5174/auth/redirect` | 不要 |
-| Docker / 単一ポート本番 | `http://localhost:3000/auth/redirect`（または本番 URL） | `true` |
+| `npm run dev` | `http://localhost:5174/auth/redirect` | Vite :5174（serverend は配信しない） |
+| `npm run build && npm run start` | `http://localhost:3000/auth/redirect` | serverend :3000 が自動配信 |
+| Docker | 本番 URL | 同上（自動） |
 
 Discord Developer Portal の Redirects に、使用する URL を**すべて**登録してください。
 

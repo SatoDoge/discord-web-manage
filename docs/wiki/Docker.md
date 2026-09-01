@@ -72,16 +72,16 @@ docker run --rm -v discord-web-manage_app-data:/data alpine ls -la /data
 docker build -t discord-web-manage:latest .
 ```
 
-## 環境変数 `SERVE_STATIC`
+## 静的ファイル配信
 
-Dockerfile および `docker-compose.yml` で `SERVE_STATIC=true` が設定されます。  
-これにより Hono が `frontend/dist` を配信し、Vue Router の SPA ルーティングも動作します。
+`node dist/main.js` で起動した場合、serverend は `frontend/dist` を **自動的に** 配信します（`SERVE_STATIC` の設定は不要）。
 
-ローカルで API のみビルドして単一ポート試験する場合:
+開発時（`tsx watch src/main.ts`）は配信を行わず、Vite（:5174）を使います。
 
-```bash
-npm run build
-SERVE_STATIC=true node serverend/dist/main.js
+明示的に無効化する場合:
+
+```env
+SERVE_STATIC=false
 ```
 
 ## リバースプロキシ（任意）
@@ -96,7 +96,7 @@ SERVE_STATIC=true node serverend/dist/main.js
 
 | 症状 | 確認事項 |
 |---|---|
-| 画面が真っ白 | `docker compose logs app` でビルドエラー、`SERVE_STATIC` |
+| 画面が真っ白 | `docker compose logs app` でビルドエラー、`frontend/dist` の有無 |
 | OAuth リダイレクトエラー | `REDIRECT_URI` と Discord Portal の一致 |
 | Bot オフライン | `DISCORD_TOKEN`、Intent 設定 |
 | データが消えた | `docker compose down -v` でボリューム削除していないか |
