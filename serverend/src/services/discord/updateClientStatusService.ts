@@ -4,6 +4,8 @@ import {
   updateClientStatus,
 } from '#server/discord/updateClientStatus.js';
 import { getDiscordClient } from '#server/discord.js';
+import { recordAuthenticatedAdminOperation } from '#server/services/operationLog/recordAdminOperation.js';
+import type { AuthenticatedServiceContext } from '#server/types/authenticatedService.js';
 
 const VALID_STATUSES = new Set<PresenceStatusData>([
   'online',
@@ -61,19 +63,34 @@ function validateActivity(activity: ActivityUpdateInput): PresenceUpdateResult |
 /** Apply presence status and/or activity updates to the Discord bot. */
 export function applyPresenceUpdate(
   input: PresenceUpdateInput,
+  context: AuthenticatedServiceContext,
 ): PresenceUpdateResult {
+  const logFailure = (error: string) => {
+    recordAuthenticatedAdminOperation(context, {
+      action: 'bot.presence_update',
+      category: 'settings',
+      success: false,
+      errorMessage: error,
+      summary: 'ボットのステータス更新に失敗しました',
+      metadata: { input },
+    });
+  };
+
   if (input.status !== undefined && !VALID_STATUSES.has(input.status)) {
+    logFailure('invalid_status');
     return { ok: false, error: 'invalid_status' };
   }
 
   if (input.activity !== undefined && input.activity !== null) {
     const activityError = validateActivity(input.activity);
-    if (activityError) {
+    if (activityError && !activityError.ok) {
+      logFailure(activityError.error);
       return activityError;
     }
   }
 
   if (!isBotReady()) {
+    logFailure('bot_not_connected');
     return { ok: false, error: 'bot_not_connected' };
   }
 
@@ -92,11 +109,19 @@ export function applyPresenceUpdate(
               },
             ],
     });
+    recordAuthenticatedAdminOperation(context, {
+      action: 'bot.presence_update',
+      category: 'settings',
+      success: true,
+      summary: 'ボットのステータスを更新しました',
+      metadata: { input },
+    });
     return { ok: true };
   }
 
   if (input.status !== undefined) {
     if (!updateClientStatus(input.status)) {
+      logFailure('bot_not_connected');
       return { ok: false, error: 'bot_not_connected' };
     }
   }
@@ -114,9 +139,18 @@ export function applyPresenceUpdate(
           ];
 
     if (!updateClientActivities(activities)) {
+      logFailure('bot_not_connected');
       return { ok: false, error: 'bot_not_connected' };
     }
   }
+
+  recordAuthenticatedAdminOperation(context, {
+    action: 'bot.presence_update',
+    category: 'settings',
+    success: true,
+    summary: 'ボットのステータスを更新しました',
+    metadata: { input },
+  });
 
   return { ok: true };
 }

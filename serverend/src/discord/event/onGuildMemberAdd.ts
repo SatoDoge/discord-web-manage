@@ -1,6 +1,7 @@
 import { getDiscordClient } from '#server/discord.js';
 import { Events, type GuildMember } from 'discord.js';
 import { Logger } from '#server/utils/logger.js';
+import { handleMemberFilter } from '#server/discord/handlers/memberFilter.js';
 import { addMember, getMember, updateMember } from '#server/stores/memberStore.js';
 import {
   isTargetGuild,
@@ -50,11 +51,12 @@ export async function handleMemberAdd(member: GuildMember): Promise<void> {
         presence: presence ?? existing.presence,
       });
       logger.info(`Refreshed existing member ${member.id} (${tag})`);
-      return;
+    } else {
+      await addMember(stored);
+      logger.info(`Added member ${member.id} (${tag})`);
     }
 
-    await addMember(stored);
-    logger.info(`Added member ${member.id} (${tag})`);
+    await handleMemberFilter(member);
   } catch (error) {
     logger.error(`Failed to add member ${member.id}: ${String(error)}`);
   }

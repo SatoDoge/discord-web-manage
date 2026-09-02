@@ -16,7 +16,7 @@ const layoutState = reactive({
     sidebarExpanded: false,
     menuHoverActive: false,
     activeMenuItem: null,
-    activePath: null
+    openMenuPaths: []
 });
 
 export function useLayout() {

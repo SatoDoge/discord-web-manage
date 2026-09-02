@@ -5,6 +5,7 @@ import { onGuildMemberAdd } from "#server/discord/event/onGuildMemberAdd.js";
 import { onGuildMemberRemove } from "#server/discord/event/onGuildMemberRemove.js";
 import { onPresenceUpdate } from "#server/discord/event/onPresenceUpdate.js";
 import { initMemberDB } from "#server/discord/initMemberDB.js";
+import { onMessageCreate } from "#server/discord/event/onMessageCreate.js";
 const logger = new Logger("discord");
 let client: Client | null = null;
 
@@ -33,6 +34,7 @@ export function createDiscordClient() {
         onGuildMemberAdd();
         onGuildMemberRemove();
         onPresenceUpdate();
+        onMessageCreate();
         await initMemberDB();
     });
 

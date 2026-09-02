@@ -1,0 +1,28 @@
+# Dependencies & build artifacts
+node_modules/
+**/dist/
+
+# Runtime data (mounted as a volume)
+serverend/data/*
+!serverend/data/.gitkeep
+
+# Environment & secrets
+.env
+.env.*
+
+# Git & IDE
+.git/
+.gitignore
+.cursor/
+.idea/
+.vscode/
+
+# Docs (not needed in the image)
+docs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

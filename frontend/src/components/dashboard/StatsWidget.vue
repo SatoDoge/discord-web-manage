@@ -1,6 +1,10 @@
 <script setup>
+import { useDiscordPresence } from '@/composables/useDiscordPresence';
 import { computed, onMounted, ref } from 'vue';
-import { formatDiscordActivity } from '@/utils/discordPresence';
+import { useI18n } from 'vue-i18n';
+
+const { t } = useI18n();
+const { formatDiscordActivity } = useDiscordPresence();
 
 /** @type {import('vue').Ref<null | {
  *   isConnected: boolean;
@@ -27,24 +31,24 @@ const isOnline = computed(() => clientStatus.value?.isConnected === true);
 
 const statusLabel = computed(() => {
     if (loading.value) {
-        return 'Loading…';
+        return t('dashboard.loading');
     }
-    return isOnline.value ? 'Online' : 'Offline';
+    return isOnline.value ? t('dashboard.online') : t('dashboard.offline');
 });
 
 const botName = computed(() => {
     if (loading.value) {
         return '—';
     }
-    return clientStatus.value?.username ?? 'Bot unavailable';
+    return clientStatus.value?.username ?? t('dashboard.botUnavailable');
 });
 
 const activityText = computed(() => {
     if (loading.value) {
-        return 'Fetching status…';
+        return t('dashboard.fetchingStatus');
     }
     if (!isOnline.value) {
-        return 'Bot is not connected';
+        return t('dashboard.botNotConnected');
     }
 
     return formatDiscordActivity(clientStatus.value?.activities?.[0]);
@@ -52,7 +56,7 @@ const activityText = computed(() => {
 </script>
 
 <template>
-    <div class="col-span-12 md:col-span-6 xl:col-span-4">
+    <div class="col-span-12 md:col-span-6 xl:col-span-3">
         <div class="card mb-0">
             <div class="flex justify-between mb-4">
                 <div class="min-w-0 flex-1 pr-3">
