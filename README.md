@@ -2,7 +2,7 @@
 Discord サーバーの管理者業務を **Web アプリ + Bot** で一元管理するセルフホスト型ツールです。  
 
 <p align="center">
-  <img src="docs/images/dashboard.png" alt="discord-web-manage のダッシュボード" width="900">
+  <img src="docs/image/dashboard.png" alt="discord-web-manage のダッシュボード" width="900">
 </p>
 
 ## 開発中!
