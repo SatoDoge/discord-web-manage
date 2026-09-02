@@ -1,11 +1,14 @@
 # discord-web-manage
-
 Discord サーバーの管理者業務を **Web アプリ + Bot** で一元管理するセルフホスト型ツールです。  
-複数の管理者が Discord 上で個別に操作すると起きがちな「誰が何をしたか分からない」問題を、Bot 経由の操作と操作ログで解消することを目的としています。
+
+<p align="center">
+  <img src="docs/images/dashboard.png" alt="discord-web-manage のダッシュボード" width="900">
+</p>
 
 ## 開発中!
 このプロジェクトは現在開発・テスト段階です。
 仕様の変更や、不具合が発生する可能性があります。
+バグ報告、機能提案、Pull Request は大歓迎です！
 
 ## 主な機能
 
