@@ -3,7 +3,7 @@
 Discord サーバーの管理者業務を **Web アプリ + Bot** で一元管理するセルフホスト型ツールです。  
 複数の管理者が Discord 上で個別に操作すると起きがちな「誰が何をしたか分からない」問題を、Bot 経由の操作と操作ログで解消することを目的としています。
 
-# 開発中
+## 開発中!
 このプロジェクトは現在開発・テスト段階です。
 仕様の変更や、不具合が発生する可能性があります。
 
@@ -17,7 +17,8 @@ Discord サーバーの管理者業務を **Web アプリ + Bot** で一元管�
   - **メンバーフィルター** — 名前 / アカウント作成から参加までの時間 / プロフィールのAIモデレーション
 - **操作ログ** — 管理者の手動操作と Bot の自動処置を記録
 
-## クイックスタート
+## クイックスタート(開発者向け)
+セルフホスティングが目的の方は[こちら](https://github.com/SatoDoge/discord-web-manage/wiki/%E3%82%AF%E3%82%A4%E3%83%83%E3%82%AF%E3%82%B9%E3%82%BF%E3%83%BC%E3%83%88)
 
 ### 前提
 
@@ -30,7 +31,13 @@ Discord サーバーの管理者業務を **Web アプリ + Bot** で一元管�
 ```bash
 git clone https://github.com/SatoDoge/discord-web-manage.git
 cd discord-web-manage
+
+# macOS / Linux
 cp .env.example .env
+
+# Windows PowerShell
+Copy-Item .env.example .env
+
 # .env を編集
 npm install
 ```
