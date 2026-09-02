@@ -17,16 +17,6 @@ const model = computed(() => [
         ]
     },
     {
-        label: t('menu.bot'),
-        items: [
-            {
-                label: t('menu.status'),
-                icon: 'pi pi-fw pi-discord',
-                to: '/bot/status'
-            }
-        ]
-    },
-    {
         label: t('menu.manage'),
         items: [
             {

@@ -14,11 +14,6 @@ const router = createRouter({
                     component: () => import('@/views/Dashboard.vue')
                 },
                 {
-                    path: '/bot/status',
-                    name: 'status',
-                    component: () => import('@/views/pages/bot/Status.vue')
-                },
-                {
                     path: '/bot/activity',
                     redirect: '/manage/activity'
                 },
