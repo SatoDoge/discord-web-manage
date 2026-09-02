@@ -43,7 +43,7 @@ onMounted(async () => {
                 <i class="pi pi-bars"></i>
             </button>
             <router-link to="/" class="layout-topbar-logo">
-                <span>SAKAI</span>
+                <span>DiscordWebManage</span>
             </router-link>
         </div>
 
