@@ -30,6 +30,7 @@ coverage/
 .cache/
 .parcel-cache/
 *.tsbuildinfo
+frontend/vite.config.mjs.timestamp-*
 .eslintcache
 .stylelintcache
 

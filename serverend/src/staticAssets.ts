@@ -29,6 +29,7 @@ function shouldServeStatic(): boolean {
 /** Serve the built Vue app in production (node dist). Disabled during tsx dev. */
 export function registerStaticAssets(app: Hono): void {
   if (!shouldServeStatic()) {
+    logger.info('Static serving disabled');
     return;
   }
 

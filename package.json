@@ -8,7 +8,7 @@
     "serverend"
   ],
   "scripts": {
-    "dev": "concurrently -k -n server,web -c cyan,magenta \"npm run dev -w serverend\" \"npm run dev -w frontend\"",
+    "dev": "concurrently -k -n server,web -c cyan,magenta --raw \"npm run dev -w serverend\" \"node scripts/wait-for-port.mjs 3000 && npm run dev -w frontend\"",
     "dev:frontend": "npm run dev -w frontend",
     "dev:server": "npm run dev -w serverend",
     "build": "npm run build -w serverend && npm run build -w frontend",
