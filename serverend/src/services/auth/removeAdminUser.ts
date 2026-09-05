@@ -1,5 +1,6 @@
 import { recordAuthenticatedAdminOperation } from '#server/services/operationLog/recordAdminOperation.js';
 import { updateAdminUserList } from '#server/stores/adminUserStore.js';
+import { updateSessionDataList } from '#server/stores/sessionDataStore.js';
 import type { AdminUser } from '#server/types/adminUser.js';
 import type { AuthenticatedServiceContext } from '#server/types/authenticatedService.js';
 
@@ -15,7 +16,7 @@ function isSnowflake(value: string): boolean {
   return /^\d{17,20}$/.test(value);
 }
 
-/** Remove an admin user by Discord user id. */
+/** Remove an admin user by Discord user id and invalidate their sessions. */
 export async function removeAdminUser(
   userId: string,
   context: AuthenticatedServiceContext,
@@ -59,6 +60,11 @@ export async function removeAdminUser(
     });
     return { ok: false, status: 404, error: 'admin_not_found' };
   }
+
+  const removedUserId = removed.id;
+  await updateSessionDataList((list) =>
+    list.filter((session) => session.userId !== removedUserId),
+  );
 
   recordAuthenticatedAdminOperation(context, {
     action: 'admin_user.remove',
