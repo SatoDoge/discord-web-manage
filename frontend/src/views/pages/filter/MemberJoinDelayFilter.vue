@@ -7,6 +7,11 @@ import { useToast } from 'primevue/usetoast';
 import { onMounted, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+const YEAR_SECONDS = 365 * 24 * 60 * 60;
+const DAY_SECONDS = 24 * 60 * 60;
+const HOUR_SECONDS = 60 * 60;
+const MINUTE_SECONDS = 60;
+
 const { t } = useI18n();
 const toast = useToast();
 const { notificationChannelOptions, roleOptions, loading: loadingOptions, loadDiscordOptions } =
@@ -15,9 +20,62 @@ const { notificationChannelOptions, roleOptions, loading: loadingOptions, loadDi
 const loading = ref(true);
 const saving = ref(false);
 const form = reactive(createMemberJoinDelayFilterSettings());
+const duration = reactive({
+    years: null,
+    days: null,
+    hours: null,
+    minutes: null,
+    seconds: null
+});
+
+function emptyDuration() {
+    return {
+        years: null,
+        days: null,
+        hours: null,
+        minutes: null,
+        seconds: null
+    };
+}
+
+function secondsToDuration(totalSeconds) {
+    if (totalSeconds == null || totalSeconds <= 0) {
+        return emptyDuration();
+    }
+
+    let remaining = Math.floor(totalSeconds);
+    const years = Math.floor(remaining / YEAR_SECONDS);
+    remaining %= YEAR_SECONDS;
+    const days = Math.floor(remaining / DAY_SECONDS);
+    remaining %= DAY_SECONDS;
+    const hours = Math.floor(remaining / HOUR_SECONDS);
+    remaining %= HOUR_SECONDS;
+    const minutes = Math.floor(remaining / MINUTE_SECONDS);
+    const seconds = remaining % MINUTE_SECONDS;
+
+    return {
+        years: years || null,
+        days: days || null,
+        hours: hours || null,
+        minutes: minutes || null,
+        seconds: seconds || null
+    };
+}
+
+function durationToSeconds(parts) {
+    const total =
+        (parts.years ?? 0) * YEAR_SECONDS +
+        (parts.days ?? 0) * DAY_SECONDS +
+        (parts.hours ?? 0) * HOUR_SECONDS +
+        (parts.minutes ?? 0) * MINUTE_SECONDS +
+        (parts.seconds ?? 0);
+
+    return total > 0 ? total : null;
+}
 
 function applySettings(settings) {
     Object.assign(form, createMemberJoinDelayFilterSettings(), settings);
+    Object.assign(duration, secondsToDuration(form.joinDelaySeconds));
 }
 
 async function loadSettings() {
@@ -39,6 +97,7 @@ async function loadSettings() {
 async function saveSettings() {
     saving.value = true;
     try {
+        form.joinDelaySeconds = durationToSeconds(duration);
         applySettings(await apiFetch('/api/filter/member/join-delay', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
@@ -93,17 +152,70 @@ onMounted(async () => {
                         <p class="text-muted-color m-0 text-sm">{{ t('filter.memberJoinDelay.thresholdHint') }}</p>
                     </div>
 
-                    <div class="flex flex-col gap-2 max-w-md">
-                        <label for="join-delay-seconds">{{ t('filter.memberJoinDelay.requiredSeconds') }}</label>
-                        <InputNumber
-                            id="join-delay-seconds"
-                            v-model="form.joinDelaySeconds"
-                            class="w-full"
-                            :disabled="loading || saving"
-                            :min="1"
-                            showButtons
-                            :placeholder="t('filter.common.disabled')"
-                        />
+                    <div class="flex flex-col gap-2">
+                        <span class="font-medium">{{ t('filter.memberJoinDelay.requiredAge') }}</span>
+                        <div class="grid grid-cols-12 gap-4">
+                            <div class="col-span-6 md:col-span-2 flex flex-col gap-2">
+                                <label for="join-delay-years">{{ t('filter.memberJoinDelay.years') }}</label>
+                                <InputNumber
+                                    id="join-delay-years"
+                                    v-model="duration.years"
+                                    class="w-full"
+                                    :disabled="loading || saving"
+                                    :min="0"
+                                    showButtons
+                                    :placeholder="t('filter.common.disabled')"
+                                />
+                            </div>
+                            <div class="col-span-6 md:col-span-2 flex flex-col gap-2">
+                                <label for="join-delay-days">{{ t('filter.memberJoinDelay.days') }}</label>
+                                <InputNumber
+                                    id="join-delay-days"
+                                    v-model="duration.days"
+                                    class="w-full"
+                                    :disabled="loading || saving"
+                                    :min="0"
+                                    showButtons
+                                    :placeholder="t('filter.common.disabled')"
+                                />
+                            </div>
+                            <div class="col-span-6 md:col-span-2 flex flex-col gap-2">
+                                <label for="join-delay-hours">{{ t('filter.memberJoinDelay.hours') }}</label>
+                                <InputNumber
+                                    id="join-delay-hours"
+                                    v-model="duration.hours"
+                                    class="w-full"
+                                    :disabled="loading || saving"
+                                    :min="0"
+                                    showButtons
+                                    :placeholder="t('filter.common.disabled')"
+                                />
+                            </div>
+                            <div class="col-span-6 md:col-span-2 flex flex-col gap-2">
+                                <label for="join-delay-minutes">{{ t('filter.memberJoinDelay.minutes') }}</label>
+                                <InputNumber
+                                    id="join-delay-minutes"
+                                    v-model="duration.minutes"
+                                    class="w-full"
+                                    :disabled="loading || saving"
+                                    :min="0"
+                                    showButtons
+                                    :placeholder="t('filter.common.disabled')"
+                                />
+                            </div>
+                            <div class="col-span-6 md:col-span-2 flex flex-col gap-2">
+                                <label for="join-delay-seconds">{{ t('filter.memberJoinDelay.seconds') }}</label>
+                                <InputNumber
+                                    id="join-delay-seconds"
+                                    v-model="duration.seconds"
+                                    class="w-full"
+                                    :disabled="loading || saving"
+                                    :min="0"
+                                    showButtons
+                                    :placeholder="t('filter.common.disabled')"
+                                />
+                            </div>
+                        </div>
                     </div>
 
                     <div class="flex flex-wrap gap-3 pt-2">
