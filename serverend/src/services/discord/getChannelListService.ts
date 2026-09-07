@@ -67,3 +67,8 @@ export async function fetchChannelList(): Promise<FetchChannelListResult> {
 
   return inflight;
 }
+
+/** Clear the short-lived channel list cache after channel mutations. */
+export function invalidateChannelListCache(): void {
+  cache = null;
+}

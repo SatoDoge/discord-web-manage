@@ -27,7 +27,8 @@ const categoryOptions = computed(() => [
     { label: t('setting.operationLogs.categorySettings'), value: 'settings' },
     { label: t('setting.operationLogs.categoryMessage'), value: 'message' },
     { label: t('setting.operationLogs.categoryMemberJoin'), value: 'member_join' },
-    { label: t('setting.operationLogs.categoryAdminUser'), value: 'admin_user' }
+    { label: t('setting.operationLogs.categoryAdminUser'), value: 'admin_user' },
+    { label: t('setting.operationLogs.categoryChannel'), value: 'channel' }
 ]);
 
 const successOptions = computed(() => [
@@ -61,6 +62,8 @@ function categorySeverity(category) {
             return 'info';
         case 'member_join':
             return 'danger';
+        case 'channel':
+            return 'contrast';
         default:
             return 'secondary';
     }

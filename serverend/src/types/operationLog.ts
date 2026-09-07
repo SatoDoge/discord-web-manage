@@ -4,7 +4,8 @@ export type OperationLogCategory =
   | 'settings'
   | 'message'
   | 'member_join'
-  | 'admin_user';
+  | 'admin_user'
+  | 'channel';
 
 export type OperationLogSource = 'manual' | 'automatic';
 
