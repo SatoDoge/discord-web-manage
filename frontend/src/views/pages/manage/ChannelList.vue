@@ -58,6 +58,9 @@ const filters = ref({
     type: { value: null, matchMode: FilterMatchMode.EQUALS }
 });
 
+const sortField = ref('displayOrder');
+const sortOrder = ref(1);
+
 const editDialog = reactive({
     visible: false,
     channelId: null,
@@ -214,6 +217,8 @@ function clearFilter() {
         global: { value: null, matchMode: FilterMatchMode.CONTAINS },
         type: { value: null, matchMode: FilterMatchMode.EQUALS }
     };
+    sortField.value = 'displayOrder';
+    sortOrder.value = 1;
 }
 
 async function loadChannels() {
@@ -512,6 +517,8 @@ onMounted(() => {
 
         <DataTable
             v-model:filters="filters"
+            v-model:sortField="sortField"
+            v-model:sortOrder="sortOrder"
             :value="channels"
             :loading="loading"
             dataKey="id"
@@ -520,8 +527,6 @@ onMounted(() => {
             :rowsPerPageOptions="[10, 20, 50]"
             filterDisplay="menu"
             :globalFilterFields="['name', 'id', 'parentName']"
-            sortField="displayOrder"
-            :sortOrder="1"
             rowHover
             class="channel-table"
             @row-click="(event) => openEditDialog(event.data)"
@@ -548,6 +553,17 @@ onMounted(() => {
             <template #empty>
                 <div class="text-center text-muted-color py-6">{{ t('manage.channels.empty') }}</div>
             </template>
+
+            <Column
+                field="displayOrder"
+                :header="t('manage.channels.globalPosition')"
+                sortable
+                style="min-width: 8rem"
+            >
+                <template #body="{ data }">
+                    <span class="font-medium">{{ data.displayOrder }}</span>
+                </template>
+            </Column>
 
             <Column field="name" :header="t('manage.channels.name')" sortable style="min-width: 14rem">
                 <template #body="{ data }">
@@ -583,7 +599,12 @@ onMounted(() => {
                 </template>
             </Column>
 
-            <Column field="position" :header="t('manage.channels.position')" style="min-width: 7rem" />
+            <Column
+                field="position"
+                :header="t('manage.channels.relativePosition')"
+                sortable
+                style="min-width: 8rem"
+            />
 
             <Column field="nsfw" :header="t('manage.channels.nsfw')" style="min-width: 6rem">
                 <template #body="{ data }">
@@ -643,8 +664,9 @@ onMounted(() => {
                     <InputText id="channel-name" v-model="editDialog.name" />
                 </div>
                 <div class="col-span-12 md:col-span-6 flex flex-col gap-2">
-                    <label for="channel-position">{{ t('manage.channels.position') }}</label>
+                    <label for="channel-position">{{ t('manage.channels.relativePosition') }}</label>
                     <InputNumber id="channel-position" v-model="editDialog.position" :min="0" showButtons />
+                    <small class="text-muted-color">{{ t('manage.channels.relativePositionHint') }}</small>
                 </div>
                 <div v-if="canEditParent" class="col-span-12 md:col-span-6 flex flex-col gap-2">
                     <label for="channel-category">{{ t('manage.channels.category') }}</label>
