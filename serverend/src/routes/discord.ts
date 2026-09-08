@@ -19,6 +19,8 @@ import { fetchRoleList, fetchRoleDetail } from '#server/services/discord/getRole
 import { createRole } from '#server/services/discord/createRoleService.js';
 import { updateRole } from '#server/services/discord/updateRoleService.js';
 import { deleteRole } from '#server/services/discord/deleteRoleService.js';
+import { fetchVoiceOccupancy } from '#server/services/discord/getVoiceOccupancyService.js';
+import { applyVoiceMembersAction } from '#server/services/discord/voiceMembersActionService.js';
 import { kickMembers } from '#server/services/discord/kickMemberService.js';
 import { postChannelMessage } from '#server/services/discord/sendChannelMessageService.js';
 import { postChannelMessageReply } from '#server/services/discord/replyChannelMessageService.js';
@@ -207,6 +209,38 @@ discord.delete('/roles/:roleId', async (c) => {
   }
 
   return c.json({ ok: true, role: result.data });
+});
+
+/** Voice/stage channels with currently connected members. */
+discord.get('/voice/channels', async (c) => {
+  const result = await fetchVoiceOccupancy();
+  if (!result.ok) {
+    return c.json({ error: result.error }, result.status as ContentfulStatusCode);
+  }
+  return c.json(result.data);
+});
+
+/**
+ * Apply a voice action to one or more members.
+ * Actions: disconnect | move | mute | unmute | deaf | undeaf
+ * `channelId` is required when action is `move`.
+ */
+discord.post('/voice/members/action', async (c) => {
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: 'invalid_body' }, 400);
+  }
+
+  const result = await applyVoiceMembersAction((body ?? {}) as Record<string, unknown>, {
+    actorUserId: c.get('userId'),
+  });
+  if (!result.ok) {
+    return c.json({ error: result.error }, result.status as ContentfulStatusCode);
+  }
+
+  return c.json(result);
 });
 
 /**

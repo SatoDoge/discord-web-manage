@@ -22,6 +22,7 @@ export function createDiscordClient() {
             GatewayIntentBits.GuildMessages,    // メッセージを取得するために使用
             GatewayIntentBits.GuildMembers,     // メンバーを取得するために使用
             GatewayIntentBits.GuildPresences,   // プレゼンス（ステータス）を取得するために使用
+            GatewayIntentBits.GuildVoiceStates, // VC参加状況の取得・操作に使用
             GatewayIntentBits.MessageContent,   // メッセージの内容を取得するために使用
         ],
     });

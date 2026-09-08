@@ -6,7 +6,8 @@ export type OperationLogCategory =
   | 'member_join'
   | 'admin_user'
   | 'channel'
-  | 'role';
+  | 'role'
+  | 'voice';
 
 export type OperationLogSource = 'manual' | 'automatic';
 
