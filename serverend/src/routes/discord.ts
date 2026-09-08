@@ -15,7 +15,10 @@ import {
   fetchGuildMemberProfile,
 } from '#server/services/discord/getMemberProfileService.js';
 import { fetchOnlineMemberList } from '#server/services/discord/getOnlineMember.js';
-import { fetchRoleList } from '#server/services/discord/getRoleListService.js';
+import { fetchRoleList, fetchRoleDetail } from '#server/services/discord/getRoleListService.js';
+import { createRole } from '#server/services/discord/createRoleService.js';
+import { updateRole } from '#server/services/discord/updateRoleService.js';
+import { deleteRole } from '#server/services/discord/deleteRoleService.js';
 import { kickMembers } from '#server/services/discord/kickMemberService.js';
 import { postChannelMessage } from '#server/services/discord/sendChannelMessageService.js';
 import { postChannelMessageReply } from '#server/services/discord/replyChannelMessageService.js';
@@ -121,13 +124,89 @@ discord.get('/channels', async (c) => {
   return c.json(result.data);
 });
 
-/** Guild roles (for channel permission overwrite editing). */
+/** Guild roles (for management UI and channel permission overwrite editing). */
 discord.get('/roles', async (c) => {
   const result = await fetchRoleList();
   if (!result.ok) {
     return c.json({ error: result.error }, result.status as ContentfulStatusCode);
   }
   return c.json(result.data);
+});
+
+/** Create a guild role. */
+discord.post('/roles', async (c) => {
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: 'invalid_body' }, 400);
+  }
+
+  const result = await createRole((body ?? {}) as Record<string, unknown>, {
+    actorUserId: c.get('userId'),
+  });
+  if (!result.ok) {
+    return c.json({ error: result.error }, result.status as ContentfulStatusCode);
+  }
+
+  return c.json(result.data, 201);
+});
+
+/** Detailed guild role info including permissions. */
+discord.get('/roles/:roleId', async (c) => {
+  const roleId = c.req.param('roleId');
+  if (!isSnowflake(roleId)) {
+    return c.json({ error: 'invalid_role_id' }, 400);
+  }
+
+  const result = await fetchRoleDetail(roleId);
+  if (!result.ok) {
+    return c.json({ error: result.error }, result.status as ContentfulStatusCode);
+  }
+
+  return c.json(result.data);
+});
+
+/** Update guild role properties (name, color, hoist, mentionable, permissions, position). */
+discord.patch('/roles/:roleId', async (c) => {
+  const roleId = c.req.param('roleId');
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: 'invalid_body' }, 400);
+  }
+
+  const result = await updateRole(roleId, (body ?? {}) as Record<string, unknown>, {
+    actorUserId: c.get('userId'),
+  });
+  if (!result.ok) {
+    return c.json({ error: result.error }, result.status as ContentfulStatusCode);
+  }
+
+  return c.json(result.data);
+});
+
+/** Delete a guild role. */
+discord.delete('/roles/:roleId', async (c) => {
+  const roleId = c.req.param('roleId');
+
+  let reason: unknown;
+  try {
+    const body = await c.req.json<{ reason?: unknown }>();
+    reason = body.reason;
+  } catch {
+    reason = undefined;
+  }
+
+  const result = await deleteRole(roleId, reason, {
+    actorUserId: c.get('userId'),
+  });
+  if (!result.ok) {
+    return c.json({ error: result.error }, result.status as ContentfulStatusCode);
+  }
+
+  return c.json({ ok: true, role: result.data });
 });
 
 /**

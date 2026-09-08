@@ -43,6 +43,11 @@ const router = createRouter({
                     component: () => import('@/views/pages/manage/ChannelList.vue')
                 },
                 {
+                    path: '/manage/roles',
+                    name: 'roleList',
+                    component: () => import('@/views/pages/manage/RoleList.vue')
+                },
+                {
                     path: '/manage/activity',
                     name: 'botActivity',
                     component: () => import('@/views/pages/manage/Activity.vue')

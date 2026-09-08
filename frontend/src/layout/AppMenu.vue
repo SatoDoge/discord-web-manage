@@ -48,6 +48,11 @@ const model = computed(() => [
                 label: t('menu.channels'),
                 icon: 'pi pi-fw pi-list',
                 to: '/manage/channels'
+            },
+            {
+                label: t('menu.roles'),
+                icon: 'pi pi-fw pi-id-card',
+                to: '/manage/roles'
             }
         ]
     },
