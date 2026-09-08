@@ -26,6 +26,8 @@ import {
   type PresenceUpdateInput,
 } from '#server/services/discord/updateClientStatusService.js';
 import { updateChannel } from '#server/services/discord/updateChannelService.js';
+import { createChannel } from '#server/services/discord/createChannelService.js';
+import { createThread } from '#server/services/discord/createThreadService.js';
 import { deleteChannel } from '#server/services/discord/deleteChannelService.js';
 import {
   deleteChannelPermission,
@@ -128,6 +130,28 @@ discord.get('/roles', async (c) => {
   return c.json(result.data);
 });
 
+/**
+ * Create a guild channel (text / voice / category / announcement / stage / forum).
+ * Pass `parentId` to place it under a category (not allowed for category channels).
+ */
+discord.post('/channels', async (c) => {
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: 'invalid_body' }, 400);
+  }
+
+  const result = await createChannel((body ?? {}) as Record<string, unknown>, {
+    actorUserId: c.get('userId'),
+  });
+  if (!result.ok) {
+    return c.json({ error: result.error }, result.status as ContentfulStatusCode);
+  }
+
+  return c.json(result.data, 201);
+});
+
 /** Detailed guild channel info including category and permission overwrites. */
 discord.get('/channels/:channelId', async (c) => {
   const channelId = c.req.param('channelId');
@@ -141,6 +165,29 @@ discord.get('/channels/:channelId', async (c) => {
   }
 
   return c.json(result.data);
+});
+
+/**
+ * Create a thread under a text/announcement channel, or a forum post under a forum channel.
+ * Category is inherited from the parent channel (returned as categoryId / categoryName).
+ */
+discord.post('/channels/:channelId/threads', async (c) => {
+  const channelId = c.req.param('channelId');
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: 'invalid_body' }, 400);
+  }
+
+  const result = await createThread(channelId, (body ?? {}) as Record<string, unknown>, {
+    actorUserId: c.get('userId'),
+  });
+  if (!result.ok) {
+    return c.json({ error: result.error }, result.status as ContentfulStatusCode);
+  }
+
+  return c.json(result.data, 201);
 });
 
 /** Update guild channel properties (name, topic, category, NSFW, slowmode, voice settings). */

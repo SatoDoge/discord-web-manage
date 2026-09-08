@@ -77,6 +77,21 @@ const editDialog = reactive({
     type: CHANNEL_TYPE.GuildText
 });
 
+const createDialog = reactive({
+    visible: false,
+    name: '',
+    type: CHANNEL_TYPE.GuildText,
+    parentId: null,
+    topic: '',
+    nsfw: false,
+    rateLimitPerUser: 0,
+    bitrate: 64000,
+    userLimit: 0,
+    reason: ''
+});
+
+const creating = ref(false);
+
 const permissionDialog = reactive({
     visible: false,
     overwriteId: null,
@@ -100,6 +115,10 @@ const typeOptions = computed(() => [
     { label: t('manage.channels.typeForum'), value: CHANNEL_TYPE.GuildForum },
     { label: t('manage.channels.typeMedia'), value: CHANNEL_TYPE.GuildMedia }
 ]);
+
+const createTypeOptions = computed(() =>
+    typeOptions.value.filter((entry) => entry.value !== CHANNEL_TYPE.GuildMedia)
+);
 
 const categoryOptions = computed(() => [
     { label: t('manage.channels.noCategory'), value: null },
@@ -135,6 +154,16 @@ function permissionStateClass(state) {
     }
 }
 
+function channelRowClass(data) {
+    if (data.type === CHANNEL_TYPE.GuildCategory) {
+        return 'channel-row-category';
+    }
+    if (data.parentId) {
+        return 'channel-row-nested';
+    }
+    return null;
+}
+
 const isVoiceLike = computed(
     () =>
         editDialog.type === CHANNEL_TYPE.GuildVoice ||
@@ -150,6 +179,21 @@ const isTextLike = computed(
 );
 
 const canEditParent = computed(() => editDialog.type !== CHANNEL_TYPE.GuildCategory);
+
+const isCreateVoiceLike = computed(
+    () =>
+        createDialog.type === CHANNEL_TYPE.GuildVoice ||
+        createDialog.type === CHANNEL_TYPE.GuildStageVoice
+);
+
+const isCreateTextLike = computed(
+    () =>
+        createDialog.type === CHANNEL_TYPE.GuildText ||
+        createDialog.type === CHANNEL_TYPE.GuildAnnouncement ||
+        createDialog.type === CHANNEL_TYPE.GuildForum
+);
+
+const canCreateParent = computed(() => createDialog.type !== CHANNEL_TYPE.GuildCategory);
 
 function typeLabel(type) {
     const option = typeOptions.value.find((entry) => entry.value === type);
@@ -269,6 +313,89 @@ async function openEditDialog(channel) {
         });
     } finally {
         detailLoading.value = false;
+    }
+}
+
+function openCreateDialog() {
+    createDialog.visible = true;
+    createDialog.name = '';
+    createDialog.type = CHANNEL_TYPE.GuildText;
+    createDialog.parentId = null;
+    createDialog.topic = '';
+    createDialog.nsfw = false;
+    createDialog.rateLimitPerUser = 0;
+    createDialog.bitrate = 64000;
+    createDialog.userLimit = 0;
+    createDialog.reason = '';
+}
+
+function onCreateTypeChange() {
+    if (createDialog.type === CHANNEL_TYPE.GuildCategory) {
+        createDialog.parentId = null;
+    }
+}
+
+async function createChannel() {
+    if (creating.value) {
+        return;
+    }
+    if (!createDialog.name.trim()) {
+        toast.add({
+            severity: 'warn',
+            summary: t('toast.validation'),
+            detail: t('manage.channels.nameRequired'),
+            life: 3000
+        });
+        return;
+    }
+
+    creating.value = true;
+    try {
+        const body = {
+            name: createDialog.name.trim(),
+            type: createDialog.type,
+            reason: createDialog.reason.trim() || undefined
+        };
+
+        if (canCreateParent.value && createDialog.parentId) {
+            body.parentId = createDialog.parentId;
+        }
+
+        if (isCreateTextLike.value) {
+            body.topic = createDialog.topic || null;
+            body.nsfw = createDialog.nsfw;
+            body.rateLimitPerUser = createDialog.rateLimitPerUser;
+        }
+
+        if (isCreateVoiceLike.value) {
+            body.bitrate = createDialog.bitrate;
+            body.userLimit = createDialog.userLimit;
+            body.nsfw = createDialog.nsfw;
+        }
+
+        await apiFetch('/api/discord/channels', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+
+        toast.add({
+            severity: 'success',
+            summary: t('toast.saved'),
+            detail: t('manage.channels.createSuccess'),
+            life: 3000
+        });
+        createDialog.visible = false;
+        await loadChannels();
+    } catch (error) {
+        toast.add({
+            severity: 'error',
+            summary: t('manage.channels.actionFailed'),
+            detail: errorDetail(error),
+            life: 4000
+        });
+    } finally {
+        creating.value = false;
     }
 }
 
@@ -505,6 +632,11 @@ onMounted(() => {
             </div>
             <div class="flex gap-2">
                 <Button
+                    :label="t('manage.channels.create')"
+                    icon="pi pi-plus"
+                    @click="openCreateDialog"
+                />
+                <Button
                     :label="t('manage.channels.refresh')"
                     icon="pi pi-refresh"
                     severity="secondary"
@@ -527,6 +659,7 @@ onMounted(() => {
             :rowsPerPageOptions="[10, 20, 50]"
             filterDisplay="menu"
             :globalFilterFields="['name', 'id', 'parentName']"
+            :rowClass="channelRowClass"
             rowHover
             class="channel-table"
             @row-click="(event) => openEditDialog(event.data)"
@@ -567,7 +700,10 @@ onMounted(() => {
 
             <Column field="name" :header="t('manage.channels.name')" sortable style="min-width: 14rem">
                 <template #body="{ data }">
-                    <div class="flex items-center gap-2">
+                    <div
+                        class="flex items-center gap-2 channel-name-cell"
+                        :class="{ 'channel-name-nested': Boolean(data.parentId) }"
+                    >
                         <i :class="typeIcon(data.type)" class="text-muted-color" />
                         <span class="font-medium">{{ data.name }}</span>
                     </div>
@@ -641,6 +777,113 @@ onMounted(() => {
             </Column>
         </DataTable>
     </div>
+
+    <Dialog
+        v-model:visible="createDialog.visible"
+        modal
+        :header="t('manage.channels.createDialogTitle')"
+        class="w-full max-w-2xl"
+        :style="{ width: '36rem' }"
+    >
+        <div class="flex flex-col gap-5">
+            <div class="grid grid-cols-12 gap-4">
+                <div class="col-span-12 md:col-span-6 flex flex-col gap-2">
+                    <label for="create-channel-name">{{ t('manage.channels.name') }}</label>
+                    <InputText id="create-channel-name" v-model="createDialog.name" />
+                </div>
+                <div class="col-span-12 md:col-span-6 flex flex-col gap-2">
+                    <label for="create-channel-type">{{ t('manage.channels.type') }}</label>
+                    <Select
+                        id="create-channel-type"
+                        v-model="createDialog.type"
+                        :options="createTypeOptions"
+                        optionLabel="label"
+                        optionValue="value"
+                        class="w-full"
+                        @change="onCreateTypeChange"
+                    />
+                </div>
+                <div v-if="canCreateParent" class="col-span-12 flex flex-col gap-2">
+                    <label for="create-channel-parent">{{ t('manage.channels.category') }}</label>
+                    <Select
+                        id="create-channel-parent"
+                        v-model="createDialog.parentId"
+                        :options="categoryOptions"
+                        optionLabel="label"
+                        optionValue="value"
+                        class="w-full"
+                        showClear
+                    />
+                </div>
+                <div v-if="isCreateTextLike" class="col-span-12 flex flex-col gap-2">
+                    <label for="create-channel-topic">{{ t('manage.channels.topic') }}</label>
+                    <Textarea id="create-channel-topic" v-model="createDialog.topic" rows="3" autoResize />
+                </div>
+                <div
+                    v-if="isCreateTextLike || isCreateVoiceLike"
+                    class="col-span-12 md:col-span-6 flex items-center gap-2"
+                >
+                    <Checkbox v-model="createDialog.nsfw" binary inputId="create-channel-nsfw" />
+                    <label for="create-channel-nsfw">{{ t('manage.channels.nsfw') }}</label>
+                </div>
+                <div v-if="isCreateTextLike" class="col-span-12 md:col-span-6 flex flex-col gap-2">
+                    <label for="create-channel-slowmode">{{ t('manage.channels.slowmode') }}</label>
+                    <InputNumber
+                        id="create-channel-slowmode"
+                        v-model="createDialog.rateLimitPerUser"
+                        :min="0"
+                        :max="21600"
+                        suffix=" s"
+                        showButtons
+                    />
+                </div>
+                <div v-if="isCreateVoiceLike" class="col-span-12 md:col-span-6 flex flex-col gap-2">
+                    <label for="create-channel-bitrate">{{ t('manage.channels.bitrate') }}</label>
+                    <InputNumber
+                        id="create-channel-bitrate"
+                        v-model="createDialog.bitrate"
+                        :min="8000"
+                        :max="384000"
+                        :step="1000"
+                        suffix=" bps"
+                        showButtons
+                    />
+                </div>
+                <div v-if="isCreateVoiceLike" class="col-span-12 md:col-span-6 flex flex-col gap-2">
+                    <label for="create-channel-user-limit">{{ t('manage.channels.userLimit') }}</label>
+                    <InputNumber
+                        id="create-channel-user-limit"
+                        v-model="createDialog.userLimit"
+                        :min="0"
+                        :max="99"
+                        showButtons
+                    />
+                </div>
+                <div class="col-span-12 flex flex-col gap-2">
+                    <label for="create-channel-reason">{{ t('manage.channels.reasonPlaceholder') }}</label>
+                    <InputText id="create-channel-reason" v-model="createDialog.reason" />
+                </div>
+            </div>
+        </div>
+
+        <template #footer>
+            <div class="flex justify-end gap-2">
+                <Button
+                    :label="t('manage.channels.cancel')"
+                    severity="secondary"
+                    text
+                    :disabled="creating"
+                    @click="createDialog.visible = false"
+                />
+                <Button
+                    :label="t('manage.channels.create')"
+                    icon="pi pi-plus"
+                    :loading="creating"
+                    @click="createChannel"
+                />
+            </div>
+        </template>
+    </Dialog>
 
     <Dialog
         v-model:visible="editDialog.visible"
@@ -955,6 +1198,18 @@ onMounted(() => {
 <style scoped>
 .channel-table :deep(.p-datatable-tbody > tr) {
     cursor: pointer;
+}
+
+.channel-table :deep(.p-datatable-tbody > tr.channel-row-category) {
+    background: color-mix(in srgb, var(--p-surface-100) 80%, transparent);
+}
+
+.channel-table :deep(.p-datatable-tbody > tr.channel-row-nested > td:first-child) {
+    box-shadow: inset 3px 0 0 #94a3b8;
+}
+
+.channel-name-nested {
+    padding-left: 1rem;
 }
 
 .permission-grid {

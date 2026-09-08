@@ -30,6 +30,7 @@ declare module 'vue' {
     Message: typeof import('primevue/message')['default']
     MultiSelect: typeof import('primevue/multiselect')['default']
     OnlineMemberWidget: typeof import('./src/components/dashboard/OnlineMemberWidget.vue')['default']
+    ProgressSpinner: typeof import('primevue/progressspinner')['default']
     RecentActivityWidget: typeof import('./src/components/dashboard/RecentActivityWidget.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
