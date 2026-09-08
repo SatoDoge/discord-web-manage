@@ -1,10 +1,11 @@
 import {
   getGuildChannelList,
+  type ChannelListScope,
   type GetChannelListError,
   type GuildChannelSummary,
 } from '#server/discord/getChannelList.js';
 
-export type { GetChannelListError, GuildChannelSummary };
+export type { ChannelListScope, GetChannelListError, GuildChannelSummary };
 
 export type FetchChannelListResult =
   | { ok: true; data: GuildChannelSummary[] }
@@ -12,13 +13,14 @@ export type FetchChannelListResult =
 
 const CACHE_TTL_MS = 1000;
 
-let cache:
-  | {
-      expiresAt: number;
-      result: FetchChannelListResult;
-    }
-  | null = null;
-let inflight: Promise<FetchChannelListResult> | null = null;
+const cacheByScope = new Map<
+  ChannelListScope,
+  {
+    expiresAt: number;
+    result: FetchChannelListResult;
+  }
+>();
+const inflightByScope = new Map<ChannelListScope, Promise<FetchChannelListResult>>();
 
 function errorStatus(error: GetChannelListError): number {
   switch (error) {
@@ -30,8 +32,8 @@ function errorStatus(error: GetChannelListError): number {
   }
 }
 
-async function loadChannelList(): Promise<FetchChannelListResult> {
-  const result = await getGuildChannelList();
+async function loadChannelList(scope: ChannelListScope): Promise<FetchChannelListResult> {
+  const result = await getGuildChannelList(undefined, scope);
   if (!result.ok) {
     return { ok: false, status: errorStatus(result.error), error: result.error };
   }
@@ -40,35 +42,43 @@ async function loadChannelList(): Promise<FetchChannelListResult> {
 }
 
 /**
- * Return searchable text channels in the configured guild.
+ * Return guild channels.
+ * - `text` (default): searchable text/forum/thread channels for filters and message tools
+ * - `manage`: text/voice/category/forum channels for the management UI
+ *
  * Short in-memory cache (1s) plus in-flight coalescing to absorb bursty UI navigations.
  */
-export async function fetchChannelList(): Promise<FetchChannelListResult> {
+export async function fetchChannelList(
+  scope: ChannelListScope = 'text',
+): Promise<FetchChannelListResult> {
   const now = Date.now();
-  if (cache && cache.expiresAt > now) {
-    return cache.result;
+  const cached = cacheByScope.get(scope);
+  if (cached && cached.expiresAt > now) {
+    return cached.result;
   }
 
+  const inflight = inflightByScope.get(scope);
   if (inflight) {
     return inflight;
   }
 
-  inflight = loadChannelList()
+  const pending = loadChannelList(scope)
     .then((result) => {
-      cache = {
+      cacheByScope.set(scope, {
         expiresAt: Date.now() + CACHE_TTL_MS,
         result,
-      };
+      });
       return result;
     })
     .finally(() => {
-      inflight = null;
+      inflightByScope.delete(scope);
     });
 
-  return inflight;
+  inflightByScope.set(scope, pending);
+  return pending;
 }
 
 /** Clear the short-lived channel list cache after channel mutations. */
 export function invalidateChannelListCache(): void {
-  cache = null;
+  cacheByScope.clear();
 }

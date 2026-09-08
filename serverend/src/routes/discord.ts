@@ -15,6 +15,7 @@ import {
   fetchGuildMemberProfile,
 } from '#server/services/discord/getMemberProfileService.js';
 import { fetchOnlineMemberList } from '#server/services/discord/getOnlineMember.js';
+import { fetchRoleList } from '#server/services/discord/getRoleListService.js';
 import { kickMembers } from '#server/services/discord/kickMemberService.js';
 import { postChannelMessage } from '#server/services/discord/sendChannelMessageService.js';
 import { postChannelMessageReply } from '#server/services/discord/replyChannelMessageService.js';
@@ -25,11 +26,13 @@ import {
   type PresenceUpdateInput,
 } from '#server/services/discord/updateClientStatusService.js';
 import { updateChannel } from '#server/services/discord/updateChannelService.js';
+import { deleteChannel } from '#server/services/discord/deleteChannelService.js';
 import {
   deleteChannelPermission,
   updateChannelPermission,
 } from '#server/services/discord/updateChannelPermissionService.js';
 import type { MemberProfileError } from '#server/discord/getMemberProfile.js';
+import type { ChannelListScope } from '#server/discord/getChannelList.js';
 
 const discord = new Hono<{ Variables: AuthVariables }>();
 
@@ -102,15 +105,26 @@ discord.get('/users/:userId', async (c) => {
 /** All guild members from the local member store. */
 discord.get('/members', async (c) => c.json(await fetchMemberList()));
 
-/** Text channels in the configured guild (for search filters). */
+/** Guild channels. `scope=manage` returns text/voice/category/forum for management UI. */
 discord.get('/channels', async (c) => {
-  const result = await fetchChannelList();
+  const scopeParam = c.req.query('scope');
+  const scope: ChannelListScope = scopeParam === 'manage' ? 'manage' : 'text';
+  const result = await fetchChannelList(scope);
   if (!result.ok) {
     const status: ContentfulStatusCode =
       result.error === 'bot_not_connected' || result.error === 'guild_not_configured' ? 503 : 404;
     return c.json({ error: result.error }, status);
   }
 
+  return c.json(result.data);
+});
+
+/** Guild roles (for channel permission overwrite editing). */
+discord.get('/roles', async (c) => {
+  const result = await fetchRoleList();
+  if (!result.ok) {
+    return c.json({ error: result.error }, result.status as ContentfulStatusCode);
+  }
   return c.json(result.data);
 });
 
@@ -147,6 +161,28 @@ discord.patch('/channels/:channelId', async (c) => {
   }
 
   return c.json(result.data);
+});
+
+/** Delete a guild channel. */
+discord.delete('/channels/:channelId', async (c) => {
+  const channelId = c.req.param('channelId');
+
+  let reason: unknown;
+  try {
+    const body = await c.req.json<{ reason?: unknown }>();
+    reason = body.reason;
+  } catch {
+    reason = undefined;
+  }
+
+  const result = await deleteChannel(channelId, reason, {
+    actorUserId: c.get('userId'),
+  });
+  if (!result.ok) {
+    return c.json({ error: result.error }, result.status as ContentfulStatusCode);
+  }
+
+  return c.json({ ok: true, channel: result.data });
 });
 
 /** Create or update a permission overwrite for a role or member on a channel. */

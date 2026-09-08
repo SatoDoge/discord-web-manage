@@ -38,6 +38,11 @@ const router = createRouter({
                     component: () => import('@/views/pages/manage/BotPostedMessages.vue')
                 },
                 {
+                    path: '/manage/channels',
+                    name: 'channelList',
+                    component: () => import('@/views/pages/manage/ChannelList.vue')
+                },
+                {
                     path: '/manage/activity',
                     name: 'botActivity',
                     component: () => import('@/views/pages/manage/Activity.vue')

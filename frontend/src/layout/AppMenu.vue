@@ -43,6 +43,11 @@ const model = computed(() => [
                 label: t('menu.botPostedMessages'),
                 icon: 'pi pi-fw pi-inbox',
                 to: '/manage/bot-messages'
+            },
+            {
+                label: t('menu.channels'),
+                icon: 'pi pi-fw pi-list',
+                to: '/manage/channels'
             }
         ]
     },
