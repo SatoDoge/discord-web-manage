@@ -3,6 +3,7 @@ import {
   type VoiceMemberAction,
   type VoiceMemberActionError,
 } from '#server/discord/voiceMemberAction.js';
+import { invalidateVoiceOccupancyCache } from '#server/services/discord/getVoiceOccupancyService.js';
 import { recordAuthenticatedAdminOperation } from '#server/services/operationLog/recordAdminOperation.js';
 import type { AuthenticatedServiceContext } from '#server/types/authenticatedService.js';
 
@@ -114,6 +115,10 @@ export async function applyVoiceMembersAction(
     } else {
       succeeded += 1;
     }
+  }
+
+  if (succeeded > 0) {
+    invalidateVoiceOccupancyCache();
   }
 
   const success = failures.length === 0;
