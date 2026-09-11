@@ -7,6 +7,7 @@ import {
   type UpdateChannelPermissionError,
 } from '#server/discord/getChannelDetail.js';
 import { invalidateChannelListCache } from '#server/services/discord/getChannelListService.js';
+import { invalidateChannelDetailCache } from '#server/services/discord/getChannelDetailService.js';
 import { recordAuthenticatedAdminOperation } from '#server/services/operationLog/recordAdminOperation.js';
 import type { AuthenticatedServiceContext } from '#server/types/authenticatedService.js';
 
@@ -169,6 +170,7 @@ export async function updateChannelPermission(
   }
 
   invalidateChannelListCache();
+  invalidateChannelDetailCache(channelId);
   recordAuthenticatedAdminOperation(context, {
     action: 'channel.permission_update',
     category: 'channel',
@@ -219,6 +221,7 @@ export async function deleteChannelPermission(
   }
 
   invalidateChannelListCache();
+  invalidateChannelDetailCache(channelId);
   recordAuthenticatedAdminOperation(context, {
     action: 'channel.permission_delete',
     category: 'channel',

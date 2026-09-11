@@ -5,6 +5,7 @@ import {
 } from '#server/discord/updateChannel.js';
 import type { GuildChannelDetail } from '#server/discord/getChannelDetail.js';
 import { invalidateChannelListCache } from '#server/services/discord/getChannelListService.js';
+import { invalidateChannelDetailCache } from '#server/services/discord/getChannelDetailService.js';
 import { recordAuthenticatedAdminOperation } from '#server/services/operationLog/recordAdminOperation.js';
 import type { AuthenticatedServiceContext } from '#server/types/authenticatedService.js';
 
@@ -232,6 +233,7 @@ export async function updateChannel(
   }
 
   invalidateChannelListCache();
+  invalidateChannelDetailCache(channelId);
   recordAuthenticatedAdminOperation(context, {
     action: 'channel.update',
     category: 'channel',

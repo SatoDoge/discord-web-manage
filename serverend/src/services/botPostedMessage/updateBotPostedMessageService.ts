@@ -10,6 +10,7 @@ import {
 } from '#server/stores/botPostedMessageStore.js';
 import { parseEmbeds, isSnowflake } from '#server/services/botPostedMessage/embedValidation.js';
 import { recordAuthenticatedAdminOperation } from '#server/services/operationLog/recordAdminOperation.js';
+import { invalidateSearchMessageCache } from '#server/services/discord/searchMessageService.js';
 import type { AuthenticatedServiceContext } from '#server/types/authenticatedService.js';
 import type { BotPostedMessage } from '#server/types/botPostedMessage.js';
 
@@ -158,5 +159,6 @@ export async function updateStoredBotPostedMessage(
     },
   });
 
+  invalidateSearchMessageCache();
   return { ok: true, data: updated };
 }

@@ -4,6 +4,7 @@ import {
 } from '#server/discord/deleteChannel.js';
 import type { GuildChannelDetail } from '#server/discord/getChannelDetail.js';
 import { invalidateChannelListCache } from '#server/services/discord/getChannelListService.js';
+import { invalidateChannelDetailCache } from '#server/services/discord/getChannelDetailService.js';
 import { recordAuthenticatedAdminOperation } from '#server/services/operationLog/recordAdminOperation.js';
 import type { AuthenticatedServiceContext } from '#server/types/authenticatedService.js';
 
@@ -67,6 +68,7 @@ export async function deleteChannel(
   }
 
   invalidateChannelListCache();
+  invalidateChannelDetailCache(channelId);
   recordAuthenticatedAdminOperation(context, {
     action: 'channel.delete',
     category: 'channel',

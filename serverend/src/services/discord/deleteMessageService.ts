@@ -3,6 +3,7 @@ import {
   type DeleteMessageError,
 } from '#server/discord/deleteMessage.js';
 import { recordAuthenticatedAdminOperation } from '#server/services/operationLog/recordAdminOperation.js';
+import { invalidateSearchMessageCache } from '#server/services/discord/searchMessageService.js';
 import type { AuthenticatedServiceContext } from '#server/types/authenticatedService.js';
 
 export type { DeleteMessageError };
@@ -101,5 +102,6 @@ export async function deleteMessage(
     metadata: { channelId, messageId, reason: auditReason },
   });
 
+  invalidateSearchMessageCache();
   return { ok: true };
 }

@@ -7,6 +7,7 @@ import type { DiscordEmbedInput } from '#server/discord/types/embedInput.js';
 import type { MessageAttachmentInput } from '#server/discord/types/messageAttachmentInput.js';
 import { recordBotPostedMessage } from '#server/services/botPostedMessage/recordBotPostedMessage.js';
 import { recordAuthenticatedAdminOperation } from '#server/services/operationLog/recordAdminOperation.js';
+import { invalidateSearchMessageCache } from '#server/services/discord/searchMessageService.js';
 import type { AuthenticatedServiceContext } from '#server/types/authenticatedService.js';
 
 export type { SendChannelMessageError, SendChannelMessageSuccess };
@@ -178,5 +179,6 @@ export async function postChannelMessage(
     reason,
   });
 
+  invalidateSearchMessageCache();
   return { ok: true, data: result.data };
 }

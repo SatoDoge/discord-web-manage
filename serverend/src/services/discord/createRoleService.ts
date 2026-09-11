@@ -5,6 +5,7 @@ import {
 } from '#server/discord/createRole.js';
 import type { GuildRoleSummary } from '#server/discord/getRoleList.js';
 import { recordAuthenticatedAdminOperation } from '#server/services/operationLog/recordAdminOperation.js';
+import { invalidateRoleListCache } from '#server/services/discord/getRoleListService.js';
 import type { AuthenticatedServiceContext } from '#server/types/authenticatedService.js';
 
 export type CreateRoleValidationError =
@@ -135,6 +136,7 @@ export async function createRole(
     return { ok: false, status: errorStatus(result.error), error: result.error };
   }
 
+  invalidateRoleListCache();
   recordAuthenticatedAdminOperation(context, {
     action: 'role.create',
     category: 'role',

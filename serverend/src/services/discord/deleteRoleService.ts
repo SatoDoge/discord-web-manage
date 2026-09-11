@@ -3,6 +3,7 @@ import {
   type DeleteGuildRoleError,
 } from '#server/discord/deleteRole.js';
 import type { GuildRoleSummary } from '#server/discord/getRoleList.js';
+import { invalidateRoleListCache } from '#server/services/discord/getRoleListService.js';
 import { recordAuthenticatedAdminOperation } from '#server/services/operationLog/recordAdminOperation.js';
 import type { AuthenticatedServiceContext } from '#server/types/authenticatedService.js';
 
@@ -66,6 +67,7 @@ export async function deleteRole(
     return { ok: false, status: errorStatus(result.error), error: result.error };
   }
 
+  invalidateRoleListCache();
   recordAuthenticatedAdminOperation(context, {
     action: 'role.delete',
     category: 'role',
