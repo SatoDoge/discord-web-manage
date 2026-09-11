@@ -17,6 +17,15 @@ const MAX_STORED_MESSAGES = 500;
 
 const enqueue = createWriteQueue();
 
+function normalizeMessage(message: BotPostedMessage): BotPostedMessage {
+  return {
+    ...message,
+    attachments: message.attachments ?? [],
+    origin: message.origin ?? 'user',
+    scheduledMessageId: message.scheduledMessageId ?? null,
+  };
+}
+
 async function readFromDisk(): Promise<BotPostedMessageList> {
   try {
     const raw = await readFile(DATA_PATH, 'utf8');
@@ -24,7 +33,8 @@ async function readFromDisk(): Promise<BotPostedMessageList> {
     if (!trimmed) {
       return [];
     }
-    return JSON.parse(trimmed) as BotPostedMessageList;
+    const list = JSON.parse(trimmed) as BotPostedMessageList;
+    return list.map(normalizeMessage);
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
       await writeToDisk([]);

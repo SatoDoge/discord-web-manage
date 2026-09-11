@@ -177,6 +177,7 @@ export async function postChannelMessage(
     attachments,
     postedByUserId: context.actorUserId,
     reason,
+    origin: 'user',
   });
 
   invalidateSearchMessageCache();

@@ -205,6 +205,7 @@ export async function postChannelMessageReply(
     attachments,
     postedByUserId: context.actorUserId,
     reason,
+    origin: 'user',
   });
 
   invalidateSearchMessageCache();

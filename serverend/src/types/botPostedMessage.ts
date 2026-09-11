@@ -3,6 +3,9 @@ import type { StoredMessageAttachmentMeta } from '#server/discord/types/messageA
 
 export type BotPostedMessageSendMode = 'send' | 'reply';
 
+/** How the bot message was triggered. */
+export type BotPostedMessageOrigin = 'user' | 'scheduled';
+
 /** A message posted by the bot through the web management API. */
 export type BotPostedMessage = {
   /** Discord message snowflake (primary key). */
@@ -20,9 +23,14 @@ export type BotPostedMessage = {
   embeds: DiscordEmbedInput[];
   attachments: StoredMessageAttachmentMeta[];
 
-  /** Admin user id who triggered the post via the web UI. */
+  /** Admin user id who triggered the post via the web UI (or schedule creator). */
   postedByUserId: string;
   reason: string | null;
+
+  /** Whether the post was triggered manually by a user or by the scheduler. */
+  origin: BotPostedMessageOrigin;
+  /** Set when origin is `scheduled`. */
+  scheduledMessageId: string | null;
 
   createdAt: string;
   updatedAt: string;
