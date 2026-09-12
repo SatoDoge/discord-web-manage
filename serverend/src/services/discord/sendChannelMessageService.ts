@@ -176,7 +176,6 @@ export async function postChannelMessage(
     embeds,
     attachments,
     postedByUserId: context.actorUserId,
-    reason,
     origin: 'user',
   });
 

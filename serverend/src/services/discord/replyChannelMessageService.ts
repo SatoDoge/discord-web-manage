@@ -204,7 +204,6 @@ export async function postChannelMessageReply(
     embeds,
     attachments,
     postedByUserId: context.actorUserId,
-    reason,
     origin: 'user',
   });
 

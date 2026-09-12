@@ -140,7 +140,6 @@ export async function updateStoredBotPostedMessage(
     content: nextContent || null,
     embeds: nextEmbeds,
     attachments: nextAttachments,
-    reason: reason?.trim() || stored.reason,
   });
 
   recordAuthenticatedAdminOperation(context, {
@@ -156,6 +155,7 @@ export async function updateStoredBotPostedMessage(
       hasContent: Boolean(nextContent),
       attachmentCount: nextAttachments.length,
       replacedAttachments: replaceAttachments,
+      reason: reason?.trim() || null,
     },
   });
 

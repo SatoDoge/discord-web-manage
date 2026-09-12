@@ -81,7 +81,6 @@ export async function dispatchScheduledMessage(
     embeds,
     attachments,
     postedByUserId: scheduled.createdByUserId,
-    reason,
     origin: 'scheduled',
     scheduledMessageId: id,
   });

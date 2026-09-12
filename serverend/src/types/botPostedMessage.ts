@@ -6,7 +6,10 @@ export type BotPostedMessageSendMode = 'send' | 'reply';
 /** How the bot message was triggered. */
 export type BotPostedMessageOrigin = 'user' | 'scheduled';
 
-/** A message posted by the bot through the web management API. */
+/**
+ * A message posted by the bot through the web management API.
+ * Tracks what was posted and where — not why (audit reasons belong in operationLog).
+ */
 export type BotPostedMessage = {
   /** Discord message snowflake (primary key). */
   messageId: string;
@@ -25,7 +28,6 @@ export type BotPostedMessage = {
 
   /** Admin user id who triggered the post via the web UI (or schedule creator). */
   postedByUserId: string;
-  reason: string | null;
 
   /** Whether the post was triggered manually by a user or by the scheduler. */
   origin: BotPostedMessageOrigin;
@@ -49,5 +51,4 @@ export type UpdateBotPostedMessageInput = {
   content?: string | null;
   embeds?: DiscordEmbedInput[];
   attachments?: StoredMessageAttachmentMeta[];
-  reason?: string | null;
 };

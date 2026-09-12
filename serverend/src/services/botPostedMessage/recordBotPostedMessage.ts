@@ -22,7 +22,6 @@ export type RecordBotPostedMessageInput = {
   embeds?: DiscordEmbedInput[];
   attachments?: MessageAttachmentInput[];
   postedByUserId: string;
-  reason?: string | null;
   origin?: BotPostedMessageOrigin;
   scheduledMessageId?: string | null;
 };
@@ -54,7 +53,6 @@ export async function recordBotPostedMessage(
       embeds: input.embeds ?? [],
       attachments: toStoredAttachments(input.attachments),
       postedByUserId: input.postedByUserId,
-      reason: input.reason?.trim() || null,
       origin: input.origin ?? 'user',
       scheduledMessageId: input.scheduledMessageId ?? null,
     });
