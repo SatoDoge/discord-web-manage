@@ -10,6 +10,7 @@ import {
 } from '#server/stores/botPostedMessageStore.js';
 import { parseEmbeds, isSnowflake } from '#server/services/botPostedMessage/embedValidation.js';
 import { recordAuthenticatedAdminOperation } from '#server/services/operationLog/recordAdminOperation.js';
+import { invalidateSearchMessageCache } from '#server/services/discord/searchMessageService.js';
 import type { AuthenticatedServiceContext } from '#server/types/authenticatedService.js';
 import type { BotPostedMessage } from '#server/types/botPostedMessage.js';
 
@@ -139,7 +140,6 @@ export async function updateStoredBotPostedMessage(
     content: nextContent || null,
     embeds: nextEmbeds,
     attachments: nextAttachments,
-    reason: reason?.trim() || stored.reason,
   });
 
   recordAuthenticatedAdminOperation(context, {
@@ -155,8 +155,10 @@ export async function updateStoredBotPostedMessage(
       hasContent: Boolean(nextContent),
       attachmentCount: nextAttachments.length,
       replacedAttachments: replaceAttachments,
+      reason: reason?.trim() || null,
     },
   });
 
+  invalidateSearchMessageCache();
   return { ok: true, data: updated };
 }

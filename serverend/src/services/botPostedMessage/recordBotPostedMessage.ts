@@ -4,6 +4,7 @@ import { toStoredAttachmentMeta } from '#server/discord/types/messageAttachmentI
 import { addBotPostedMessage } from '#server/stores/botPostedMessageStore.js';
 import type {
   BotPostedMessage,
+  BotPostedMessageOrigin,
   BotPostedMessageSendMode,
 } from '#server/types/botPostedMessage.js';
 import { Logger } from '#server/utils/logger.js';
@@ -21,7 +22,8 @@ export type RecordBotPostedMessageInput = {
   embeds?: DiscordEmbedInput[];
   attachments?: MessageAttachmentInput[];
   postedByUserId: string;
-  reason?: string | null;
+  origin?: BotPostedMessageOrigin;
+  scheduledMessageId?: string | null;
 };
 
 function toStoredAttachments(attachments: MessageAttachmentInput[] = []) {
@@ -51,7 +53,8 @@ export async function recordBotPostedMessage(
       embeds: input.embeds ?? [],
       attachments: toStoredAttachments(input.attachments),
       postedByUserId: input.postedByUserId,
-      reason: input.reason?.trim() || null,
+      origin: input.origin ?? 'user',
+      scheduledMessageId: input.scheduledMessageId ?? null,
     });
   } catch (error) {
     logger.error(`Failed to record bot posted message ${input.messageId}: ${String(error)}`);

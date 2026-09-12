@@ -8,6 +8,7 @@ import filter from '#server/routes/filter.js';
 import memberJoin from '#server/routes/memberJoin.js';
 import message from '#server/routes/message.js';
 import operationLog from '#server/routes/operationLog.js';
+import scheduledMessage from '#server/routes/scheduledMessage.js';
 import user from '#server/routes/user.js';
 import utils from '#server/routes/utils.js';
 import { registerStaticAssets } from '#server/staticAssets.js';
@@ -40,6 +41,7 @@ export function createApp() {
   app.route('/api/user', user);
   app.route('/api/discord', discord);
   app.route('/api/bot-messages', botPostedMessage);
+  app.route('/api/scheduled-messages', scheduledMessage);
   app.route('/api/filter', filter);
   app.route('/api/message', message);
   app.route('/api/member-join', memberJoin);

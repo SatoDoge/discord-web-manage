@@ -6,6 +6,7 @@ import { onGuildMemberRemove } from "#server/discord/event/onGuildMemberRemove.j
 import { onPresenceUpdate } from "#server/discord/event/onPresenceUpdate.js";
 import { initMemberDB } from "#server/discord/initMemberDB.js";
 import { onMessageCreate } from "#server/discord/event/onMessageCreate.js";
+import { initScheduledMessageScheduler } from "#server/services/scheduledMessage/scheduledMessageScheduler.js";
 const logger = new Logger("discord");
 let client: Client | null = null;
 
@@ -22,6 +23,7 @@ export function createDiscordClient() {
             GatewayIntentBits.GuildMessages,    // メッセージを取得するために使用
             GatewayIntentBits.GuildMembers,     // メンバーを取得するために使用
             GatewayIntentBits.GuildPresences,   // プレゼンス（ステータス）を取得するために使用
+            GatewayIntentBits.GuildVoiceStates, // VC参加状況の取得・操作に使用
             GatewayIntentBits.MessageContent,   // メッセージの内容を取得するために使用
         ],
     });
@@ -36,6 +38,7 @@ export function createDiscordClient() {
         onPresenceUpdate();
         onMessageCreate();
         await initMemberDB();
+        await initScheduledMessageScheduler();
     });
 
     client.login(token);

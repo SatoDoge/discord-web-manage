@@ -312,15 +312,21 @@ function errorStatus(error: SearchMessageError): number {
   }
 }
 
-/** Search guild messages with a validated query. */
-export async function searchGuildMessages(
-  body: unknown,
-): Promise<SearchMessagesServiceResult> {
-  const query = parseSearchMessageQuery(body);
-  if (!query) {
-    return { ok: false, status: 400, error: 'invalid_query' };
-  }
+const CACHE_TTL_MS = 1000;
 
+const cacheByQuery = new Map<
+  string,
+  { expiresAt: number; result: SearchMessagesServiceResult }
+>();
+const inflightByQuery = new Map<string, Promise<SearchMessagesServiceResult>>();
+
+function cacheKeyForQuery(query: searchMessageQuery): string {
+  return JSON.stringify(query, Object.keys(query).sort());
+}
+
+async function loadSearch(
+  query: searchMessageQuery,
+): Promise<SearchMessagesServiceResult> {
   const result = await searchMessages(query);
   if (!result.ok) {
     return {
@@ -330,6 +336,50 @@ export async function searchGuildMessages(
       retryAfter: result.retryAfter,
     };
   }
-
   return { ok: true, data: result.data };
+}
+
+/**
+ * Search guild messages with a validated query.
+ * Short in-memory cache (1s) plus in-flight coalescing per query payload.
+ */
+export async function searchGuildMessages(
+  body: unknown,
+): Promise<SearchMessagesServiceResult> {
+  const query = parseSearchMessageQuery(body);
+  if (!query) {
+    return { ok: false, status: 400, error: 'invalid_query' };
+  }
+
+  const cacheKey = cacheKeyForQuery(query);
+  const now = Date.now();
+  const cached = cacheByQuery.get(cacheKey);
+  if (cached && cached.expiresAt > now) {
+    return cached.result;
+  }
+
+  const inflight = inflightByQuery.get(cacheKey);
+  if (inflight) {
+    return inflight;
+  }
+
+  const pending = loadSearch(query)
+    .then((result) => {
+      cacheByQuery.set(cacheKey, {
+        expiresAt: Date.now() + CACHE_TTL_MS,
+        result,
+      });
+      return result;
+    })
+    .finally(() => {
+      inflightByQuery.delete(cacheKey);
+    });
+
+  inflightByQuery.set(cacheKey, pending);
+  return pending;
+}
+
+/** Clear short-lived message search cache after message mutations. */
+export function invalidateSearchMessageCache(): void {
+  cacheByQuery.clear();
 }

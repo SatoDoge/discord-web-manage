@@ -17,6 +17,17 @@ const MAX_STORED_MESSAGES = 500;
 
 const enqueue = createWriteQueue();
 
+/** Drop legacy `reason` and fill defaults for older records. */
+function normalizeMessage(raw: BotPostedMessage & { reason?: unknown }): BotPostedMessage {
+  const { reason: _legacyReason, ...message } = raw;
+  return {
+    ...message,
+    attachments: message.attachments ?? [],
+    origin: message.origin ?? 'user',
+    scheduledMessageId: message.scheduledMessageId ?? null,
+  };
+}
+
 async function readFromDisk(): Promise<BotPostedMessageList> {
   try {
     const raw = await readFile(DATA_PATH, 'utf8');
@@ -24,7 +35,8 @@ async function readFromDisk(): Promise<BotPostedMessageList> {
     if (!trimmed) {
       return [];
     }
-    return JSON.parse(trimmed) as BotPostedMessageList;
+    const list = JSON.parse(trimmed) as Array<BotPostedMessage & { reason?: unknown }>;
+    return list.map(normalizeMessage);
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
       await writeToDisk([]);
@@ -35,7 +47,7 @@ async function readFromDisk(): Promise<BotPostedMessageList> {
 }
 
 async function writeToDisk(list: BotPostedMessageList): Promise<void> {
-  await writeFile(DATA_PATH, `${JSON.stringify(list, null, 2)}\n`, 'utf8');
+  await writeFile(DATA_PATH, `${JSON.stringify(list.map(normalizeMessage), null, 2)}\n`, 'utf8');
 }
 
 function findIndexOrThrow(list: BotPostedMessageList, messageId: string): number {
@@ -104,7 +116,7 @@ export function updateBotPostedMessage(
   patch: Partial<
     Pick<
       BotPostedMessage,
-      'content' | 'embeds' | 'attachments' | 'reason' | 'deletedAt' | 'isDeleted'
+      'content' | 'embeds' | 'attachments' | 'deletedAt' | 'isDeleted'
     >
   >,
 ): Promise<BotPostedMessage> {

@@ -7,6 +7,7 @@ import {
 } from '#server/services/discord/banMemberService.js';
 import { deleteMessage } from '#server/services/discord/deleteMessageService.js';
 import { fetchChannelList } from '#server/services/discord/getChannelListService.js';
+import { fetchChannelDetail } from '#server/services/discord/getChannelDetailService.js';
 import { fetchClientStatus } from '#server/services/discord/getClientStatusService.js';
 import { fetchMemberList } from '#server/services/discord/getMemberListService.js';
 import {
@@ -14,6 +15,12 @@ import {
   fetchGuildMemberProfile,
 } from '#server/services/discord/getMemberProfileService.js';
 import { fetchOnlineMemberList } from '#server/services/discord/getOnlineMember.js';
+import { fetchRoleList, fetchRoleDetail } from '#server/services/discord/getRoleListService.js';
+import { createRole } from '#server/services/discord/createRoleService.js';
+import { updateRole } from '#server/services/discord/updateRoleService.js';
+import { deleteRole } from '#server/services/discord/deleteRoleService.js';
+import { fetchVoiceOccupancy } from '#server/services/discord/getVoiceOccupancyService.js';
+import { applyVoiceMembersAction } from '#server/services/discord/voiceMembersActionService.js';
 import { kickMembers } from '#server/services/discord/kickMemberService.js';
 import { postChannelMessage } from '#server/services/discord/sendChannelMessageService.js';
 import { postChannelMessageReply } from '#server/services/discord/replyChannelMessageService.js';
@@ -23,7 +30,16 @@ import {
   applyPresenceUpdate,
   type PresenceUpdateInput,
 } from '#server/services/discord/updateClientStatusService.js';
+import { updateChannel } from '#server/services/discord/updateChannelService.js';
+import { createChannel } from '#server/services/discord/createChannelService.js';
+import { createThread } from '#server/services/discord/createThreadService.js';
+import { deleteChannel } from '#server/services/discord/deleteChannelService.js';
+import {
+  deleteChannelPermission,
+  updateChannelPermission,
+} from '#server/services/discord/updateChannelPermissionService.js';
 import type { MemberProfileError } from '#server/discord/getMemberProfile.js';
+import type { ChannelListScope } from '#server/discord/getChannelList.js';
 
 const discord = new Hono<{ Variables: AuthVariables }>();
 
@@ -96,13 +112,281 @@ discord.get('/users/:userId', async (c) => {
 /** All guild members from the local member store. */
 discord.get('/members', async (c) => c.json(await fetchMemberList()));
 
-/** Text channels in the configured guild (for search filters). */
+/** Guild channels. `scope=manage` returns text/voice/category/forum for management UI. */
 discord.get('/channels', async (c) => {
-  const result = await fetchChannelList();
+  const scopeParam = c.req.query('scope');
+  const scope: ChannelListScope = scopeParam === 'manage' ? 'manage' : 'text';
+  const result = await fetchChannelList(scope);
   if (!result.ok) {
     const status: ContentfulStatusCode =
       result.error === 'bot_not_connected' || result.error === 'guild_not_configured' ? 503 : 404;
     return c.json({ error: result.error }, status);
+  }
+
+  return c.json(result.data);
+});
+
+/** Guild roles (for management UI and channel permission overwrite editing). */
+discord.get('/roles', async (c) => {
+  const result = await fetchRoleList();
+  if (!result.ok) {
+    return c.json({ error: result.error }, result.status as ContentfulStatusCode);
+  }
+  return c.json(result.data);
+});
+
+/** Create a guild role. */
+discord.post('/roles', async (c) => {
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: 'invalid_body' }, 400);
+  }
+
+  const result = await createRole((body ?? {}) as Record<string, unknown>, {
+    actorUserId: c.get('userId'),
+  });
+  if (!result.ok) {
+    return c.json({ error: result.error }, result.status as ContentfulStatusCode);
+  }
+
+  return c.json(result.data, 201);
+});
+
+/** Detailed guild role info including permissions. */
+discord.get('/roles/:roleId', async (c) => {
+  const roleId = c.req.param('roleId');
+  if (!isSnowflake(roleId)) {
+    return c.json({ error: 'invalid_role_id' }, 400);
+  }
+
+  const result = await fetchRoleDetail(roleId);
+  if (!result.ok) {
+    return c.json({ error: result.error }, result.status as ContentfulStatusCode);
+  }
+
+  return c.json(result.data);
+});
+
+/** Update guild role properties (name, color, hoist, mentionable, permissions, position). */
+discord.patch('/roles/:roleId', async (c) => {
+  const roleId = c.req.param('roleId');
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: 'invalid_body' }, 400);
+  }
+
+  const result = await updateRole(roleId, (body ?? {}) as Record<string, unknown>, {
+    actorUserId: c.get('userId'),
+  });
+  if (!result.ok) {
+    return c.json({ error: result.error }, result.status as ContentfulStatusCode);
+  }
+
+  return c.json(result.data);
+});
+
+/** Delete a guild role. */
+discord.delete('/roles/:roleId', async (c) => {
+  const roleId = c.req.param('roleId');
+
+  let reason: unknown;
+  try {
+    const body = await c.req.json<{ reason?: unknown }>();
+    reason = body.reason;
+  } catch {
+    reason = undefined;
+  }
+
+  const result = await deleteRole(roleId, reason, {
+    actorUserId: c.get('userId'),
+  });
+  if (!result.ok) {
+    return c.json({ error: result.error }, result.status as ContentfulStatusCode);
+  }
+
+  return c.json({ ok: true, role: result.data });
+});
+
+/** Voice/stage channels with currently connected members. */
+discord.get('/voice/channels', async (c) => {
+  const result = await fetchVoiceOccupancy();
+  if (!result.ok) {
+    return c.json({ error: result.error }, result.status as ContentfulStatusCode);
+  }
+  return c.json(result.data);
+});
+
+/**
+ * Apply a voice action to one or more members.
+ * Actions: disconnect | move | mute | unmute | deaf | undeaf
+ * `channelId` is required when action is `move`.
+ */
+discord.post('/voice/members/action', async (c) => {
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: 'invalid_body' }, 400);
+  }
+
+  const result = await applyVoiceMembersAction((body ?? {}) as Record<string, unknown>, {
+    actorUserId: c.get('userId'),
+  });
+  if (!result.ok) {
+    return c.json({ error: result.error }, result.status as ContentfulStatusCode);
+  }
+
+  return c.json(result);
+});
+
+/**
+ * Create a guild channel (text / voice / category / announcement / stage / forum).
+ * Pass `parentId` to place it under a category (not allowed for category channels).
+ */
+discord.post('/channels', async (c) => {
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: 'invalid_body' }, 400);
+  }
+
+  const result = await createChannel((body ?? {}) as Record<string, unknown>, {
+    actorUserId: c.get('userId'),
+  });
+  if (!result.ok) {
+    return c.json({ error: result.error }, result.status as ContentfulStatusCode);
+  }
+
+  return c.json(result.data, 201);
+});
+
+/** Detailed guild channel info including category and permission overwrites. */
+discord.get('/channels/:channelId', async (c) => {
+  const channelId = c.req.param('channelId');
+  if (!isSnowflake(channelId)) {
+    return c.json({ error: 'invalid_channel_id' }, 400);
+  }
+
+  const result = await fetchChannelDetail(channelId);
+  if (!result.ok) {
+    return c.json({ error: result.error }, result.status as ContentfulStatusCode);
+  }
+
+  return c.json(result.data);
+});
+
+/**
+ * Create a thread under a text/announcement channel, or a forum post under a forum channel.
+ * Category is inherited from the parent channel (returned as categoryId / categoryName).
+ */
+discord.post('/channels/:channelId/threads', async (c) => {
+  const channelId = c.req.param('channelId');
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: 'invalid_body' }, 400);
+  }
+
+  const result = await createThread(channelId, (body ?? {}) as Record<string, unknown>, {
+    actorUserId: c.get('userId'),
+  });
+  if (!result.ok) {
+    return c.json({ error: result.error }, result.status as ContentfulStatusCode);
+  }
+
+  return c.json(result.data, 201);
+});
+
+/** Update guild channel properties (name, topic, category, NSFW, slowmode, voice settings). */
+discord.patch('/channels/:channelId', async (c) => {
+  const channelId = c.req.param('channelId');
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: 'invalid_body' }, 400);
+  }
+
+  const result = await updateChannel(channelId, (body ?? {}) as Record<string, unknown>, {
+    actorUserId: c.get('userId'),
+  });
+  if (!result.ok) {
+    return c.json({ error: result.error }, result.status as ContentfulStatusCode);
+  }
+
+  return c.json(result.data);
+});
+
+/** Delete a guild channel. */
+discord.delete('/channels/:channelId', async (c) => {
+  const channelId = c.req.param('channelId');
+
+  let reason: unknown;
+  try {
+    const body = await c.req.json<{ reason?: unknown }>();
+    reason = body.reason;
+  } catch {
+    reason = undefined;
+  }
+
+  const result = await deleteChannel(channelId, reason, {
+    actorUserId: c.get('userId'),
+  });
+  if (!result.ok) {
+    return c.json({ error: result.error }, result.status as ContentfulStatusCode);
+  }
+
+  return c.json({ ok: true, channel: result.data });
+});
+
+/** Create or update a permission overwrite for a role or member on a channel. */
+discord.put('/channels/:channelId/permissions/:overwriteId', async (c) => {
+  const channelId = c.req.param('channelId');
+  const overwriteId = c.req.param('overwriteId');
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: 'invalid_body' }, 400);
+  }
+
+  const result = await updateChannelPermission(
+    channelId,
+    overwriteId,
+    (body ?? {}) as Record<string, unknown>,
+    { actorUserId: c.get('userId') },
+  );
+  if (!result.ok) {
+    return c.json({ error: result.error }, result.status as ContentfulStatusCode);
+  }
+
+  return c.json(result.data);
+});
+
+/** Delete a permission overwrite from a channel. */
+discord.delete('/channels/:channelId/permissions/:overwriteId', async (c) => {
+  const channelId = c.req.param('channelId');
+  const overwriteId = c.req.param('overwriteId');
+
+  let reason: unknown;
+  try {
+    const body = await c.req.json<{ reason?: unknown }>();
+    reason = body.reason;
+  } catch {
+    reason = undefined;
+  }
+
+  const result = await deleteChannelPermission(channelId, overwriteId, reason, {
+    actorUserId: c.get('userId'),
+  });
+  if (!result.ok) {
+    return c.json({ error: result.error }, result.status as ContentfulStatusCode);
   }
 
   return c.json(result.data);

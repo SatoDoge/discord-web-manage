@@ -34,7 +34,13 @@ const CHANNEL_TYPE = {
 
 const loadingChannels = ref(true);
 const sending = ref(false);
+const scheduling = ref(false);
 const channels = ref([]);
+
+const scheduleDialog = reactive({
+    visible: false,
+    scheduledAt: null
+});
 
 const destinationForm = reactive({
     mode: 'send',
@@ -141,7 +147,7 @@ const previewError = computed(() => {
 });
 
 const canSend = computed(() => {
-    if (sending.value) {
+    if (sending.value || scheduling.value) {
         return false;
     }
 
@@ -161,6 +167,30 @@ const canSend = computed(() => {
         return Boolean(messageForm.content.trim()) || hasAttachments.value;
     }
     return parsedEmbeds.value.ok || hasAttachments.value;
+});
+
+const canSchedule = computed(() => canSend.value && !isReplyMode.value);
+
+const sendMenuItems = computed(() => [
+    {
+        label: t('manage.send.scheduleMenu'),
+        icon: 'pi pi-calendar',
+        disabled: !canSchedule.value,
+        command: () => openScheduleDialog()
+    }
+]);
+
+const scheduleMinDate = computed(() => {
+    const date = new Date();
+    date.setMinutes(date.getMinutes() + 1, 0, 0);
+    return date;
+});
+
+const canConfirmSchedule = computed(() => {
+    if (!scheduleDialog.scheduledAt || scheduling.value) {
+        return false;
+    }
+    return new Date(scheduleDialog.scheduledAt).getTime() > Date.now();
 });
 
 function channelTypeKey(type) {
@@ -360,6 +390,111 @@ function sendErrorMessage(error) {
     return translated === key ? t('manage.send.sendFailed') : translated;
 }
 
+function scheduleErrorMessage(error) {
+    const key = `manage.send.scheduleErrors.${error}`;
+    const translated = t(key);
+    return translated === key ? t('manage.send.scheduleFailed') : translated;
+}
+
+function clearAfterSuccessfulPost() {
+    if (messageForm.format === 'text') {
+        messageForm.content = '';
+    }
+    clearAttachments();
+    if (isReplyMode.value) {
+        destinationForm.replyTarget = '';
+    }
+    if (showThreadName.value) {
+        destinationForm.threadName = '';
+    }
+}
+
+function openScheduleDialog() {
+    if (!canSchedule.value) {
+        toast.add({
+            severity: 'warn',
+            summary: t('toast.validation'),
+            detail: isReplyMode.value
+                ? t('manage.send.scheduleReplyUnsupported')
+                : (replyTargetError.value ?? t('manage.send.validationDetail')),
+            life: 4000
+        });
+        return;
+    }
+
+    const initial = new Date();
+    initial.setMinutes(initial.getMinutes() + 5, 0, 0);
+    scheduleDialog.scheduledAt = initial;
+    scheduleDialog.visible = true;
+}
+
+async function confirmSchedule() {
+    if (!canSchedule.value || !canConfirmSchedule.value) {
+        toast.add({
+            severity: 'warn',
+            summary: t('toast.validation'),
+            detail: t('manage.send.scheduleValidationDetail'),
+            life: 4000
+        });
+        return;
+    }
+
+    scheduling.value = true;
+    try {
+        const useMultipart = hasAttachments.value;
+        let body;
+        if (useMultipart) {
+            body = buildFormData();
+            body.append('scheduledAt', new Date(scheduleDialog.scheduledAt).toISOString());
+        } else {
+            body = JSON.stringify({
+                ...buildPayload(),
+                scheduledAt: new Date(scheduleDialog.scheduledAt).toISOString()
+            });
+        }
+
+        const response = await fetch('/api/scheduled-messages', {
+            method: 'POST',
+            credentials: 'include',
+            headers: useMultipart ? undefined : { 'Content-Type': 'application/json' },
+            body
+        });
+
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            throw new Error(data.error ?? 'schedule_failed');
+        }
+
+        toast.add({
+            severity: 'success',
+            summary: t('manage.send.scheduleSuccess'),
+            detail: t('manage.send.scheduleSuccessDetail', {
+                scheduledAt: formatDate(data.scheduledAt)
+            }),
+            life: 5000
+        });
+
+        scheduleDialog.visible = false;
+        clearAfterSuccessfulPost();
+    } catch (error) {
+        toast.add({
+            severity: 'error',
+            summary: t('toast.actionFailed'),
+            detail: scheduleErrorMessage(error.message),
+            life: 6000
+        });
+    } finally {
+        scheduling.value = false;
+    }
+}
+
+function formatDate(value) {
+    if (!value) {
+        return '—';
+    }
+    return new Date(value).toLocaleString();
+}
+
 async function sendMessage() {
     if (!canSend.value) {
         toast.add({
@@ -394,16 +529,7 @@ async function sendMessage() {
             life: 5000
         });
 
-        if (messageForm.format === 'text') {
-            messageForm.content = '';
-        }
-        clearAttachments();
-        if (isReplyMode.value) {
-            destinationForm.replyTarget = '';
-        }
-        if (showThreadName.value) {
-            destinationForm.threadName = '';
-        }
+        clearAfterSuccessfulPost();
     } catch (error) {
         toast.add({
             severity: 'error',
@@ -624,10 +750,11 @@ onMounted(() => {
                     </div>
 
                     <div class="flex flex-wrap gap-3">
-                        <Button
+                        <SplitButton
                             :label="t('manage.send.sendButton')"
                             icon="pi pi-send"
-                            :loading="sending"
+                            :model="sendMenuItems"
+                            :loading="sending || scheduling"
                             :disabled="!canSend"
                             @click="sendMessage"
                         />
@@ -636,7 +763,7 @@ onMounted(() => {
                             icon="pi pi-refresh"
                             severity="secondary"
                             outlined
-                            :disabled="sending"
+                            :disabled="sending || scheduling"
                             @click="resetMessageForm"
                         />
                         <Button
@@ -644,7 +771,7 @@ onMounted(() => {
                             icon="pi pi-map-marker"
                             severity="secondary"
                             text
-                            :disabled="sending"
+                            :disabled="sending || scheduling"
                             @click="resetDestinationForm"
                         />
                     </div>
@@ -691,6 +818,49 @@ onMounted(() => {
             </div>
         </div>
     </Fluid>
+
+    <Dialog
+        v-model:visible="scheduleDialog.visible"
+        modal
+        :header="t('manage.send.scheduleDialogTitle')"
+        :style="{ width: 'min(28rem, 96vw)' }"
+        :closable="!scheduling"
+    >
+        <div class="flex flex-col gap-4">
+            <p class="text-muted-color m-0">{{ t('manage.send.scheduleDialogDescription') }}</p>
+            <div class="flex flex-col gap-2">
+                <label for="schedule-at">{{ t('manage.send.scheduledAt') }}</label>
+                <DatePicker
+                    id="schedule-at"
+                    v-model="scheduleDialog.scheduledAt"
+                    showTime
+                    hourFormat="24"
+                    showIcon
+                    iconDisplay="input"
+                    :minDate="scheduleMinDate"
+                    class="w-full"
+                    :disabled="scheduling"
+                />
+            </div>
+        </div>
+
+        <template #footer>
+            <Button
+                :label="t('manage.send.scheduleCancel')"
+                severity="secondary"
+                outlined
+                :disabled="scheduling"
+                @click="scheduleDialog.visible = false"
+            />
+            <Button
+                :label="t('manage.send.scheduleConfirm')"
+                icon="pi pi-calendar-plus"
+                :loading="scheduling"
+                :disabled="!canConfirmSchedule"
+                @click="confirmSchedule"
+            />
+        </template>
+    </Dialog>
 </template>
 
 <style scoped>

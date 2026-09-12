@@ -18,15 +18,17 @@ const {
     loadDiscordOptions
 } = useDiscordOptions();
 
-const messages = ref([]);
+const postedMessages = ref([]);
+const scheduledMessages = ref([]);
 const loading = ref(true);
 const saving = ref(false);
 const deleting = ref(false);
+const sendingNow = ref(false);
 
 const filters = ref({
     global: { value: null, matchMode: FilterMatchMode.CONTAINS },
-    sendMode: { value: null, matchMode: FilterMatchMode.EQUALS },
-    isDeleted: { value: null, matchMode: FilterMatchMode.EQUALS }
+    originType: { value: null, matchMode: FilterMatchMode.EQUALS },
+    deliveryStatus: { value: null, matchMode: FilterMatchMode.EQUALS }
 });
 
 const {
@@ -44,41 +46,85 @@ const {
 const fileInputRef = ref(null);
 const initialExistingAttachmentKeys = ref(new Set());
 
-const editDialog = reactive({
+const detailDialog = reactive({
     visible: false,
-    message: null,
+    row: null,
     content: '',
     embedJson: '[]',
     reason: '',
+    scheduledAt: null,
     existingAttachments: []
 });
 
 const deleteDialog = reactive({
     visible: false,
-    message: null,
+    row: null,
     reason: ''
 });
 
-const sendModeOptions = computed(() => [
-    { label: t('manage.botPosted.modeSend'), value: 'send' },
-    { label: t('manage.botPosted.modeReply'), value: 'reply' }
+const originOptions = computed(() => [
+    { label: t('manage.botPosted.originManual'), value: 'manual' },
+    { label: t('manage.botPosted.originScheduled'), value: 'scheduled' }
 ]);
 
-const statusOptions = computed(() => [
-    { label: t('manage.botPosted.statusActive'), value: false },
-    { label: t('manage.botPosted.statusDeleted'), value: true }
+const deliveryStatusOptions = computed(() => [
+    { label: t('manage.botPosted.deliveryPending'), value: 'pending' },
+    { label: t('manage.botPosted.deliverySent'), value: 'sent' },
+    { label: t('manage.botPosted.deliveryFailed'), value: 'failed' },
+    { label: t('manage.botPosted.statusActive'), value: 'active' },
+    { label: t('manage.botPosted.statusDeleted'), value: 'deleted' }
 ]);
 
 const loadingAll = computed(() => loading.value || loadingOptions.value);
 
-const parsedEditEmbeds = computed(() => parseEmbedJsonInput(editDialog.embedJson));
+const tableRows = computed(() => {
+    const postedByMessageId = new Map(
+        postedMessages.value.map((message) => [message.messageId, message])
+    );
+    const scheduledById = new Map(scheduledMessages.value.map((message) => [message.id, message]));
+    const linkedPostedIds = new Set();
+    const rows = [];
+
+    for (const scheduled of scheduledMessages.value) {
+        const posted =
+            (scheduled.resultingMessageId
+                ? postedByMessageId.get(scheduled.resultingMessageId)
+                : null) ??
+            postedMessages.value.find((message) => message.scheduledMessageId === scheduled.id) ??
+            null;
+
+        if (posted) {
+            linkedPostedIds.add(posted.messageId);
+        }
+
+        rows.push(buildScheduledRow(scheduled, posted));
+    }
+
+    for (const posted of postedMessages.value) {
+        if (linkedPostedIds.has(posted.messageId)) {
+            continue;
+        }
+        if (posted.scheduledMessageId && scheduledById.has(posted.scheduledMessageId)) {
+            continue;
+        }
+        rows.push(buildPostedRow(posted));
+    }
+
+    return rows.sort((a, b) => {
+        const aTime = new Date(a.sortAt).getTime();
+        const bTime = new Date(b.sortAt).getTime();
+        return bTime - aTime;
+    });
+});
+
+const parsedEditEmbeds = computed(() => parseEmbedJsonInput(detailDialog.embedJson));
 
 const editPreviewEmbeds = computed(() =>
     parsedEditEmbeds.value.ok ? parsedEditEmbeds.value.embeds : []
 );
 
 const editPreviewError = computed(() => {
-    if (!editDialog.embedJson.trim() || editDialog.embedJson.trim() === '[]') {
+    if (!detailDialog.embedJson.trim() || detailDialog.embedJson.trim() === '[]') {
         return null;
     }
     if (!parsedEditEmbeds.value.ok) {
@@ -87,17 +133,49 @@ const editPreviewError = computed(() => {
     return null;
 });
 
-const canSaveEdit = computed(() => {
-    if (!editDialog.message || saving.value) {
+/** Pending or failed schedules can be edited, rescheduled, or force-sent. */
+const isEditableSchedule = computed(
+    () =>
+        detailDialog.row?.kind === 'scheduled' &&
+        (detailDialog.row.deliveryStatus === 'pending' || detailDialog.row.deliveryStatus === 'failed')
+);
+
+const isEditablePosted = computed(() => {
+    const row = detailDialog.row;
+    if (!row) {
         return false;
     }
-    const hasContent = Boolean(editDialog.content.trim());
+    if (row.posted && !row.posted.isDeleted) {
+        return true;
+    }
+    return false;
+});
+
+const canEditContent = computed(() => isEditableSchedule.value || isEditablePosted.value);
+
+const canSaveDetail = computed(() => {
+    if (!detailDialog.row || saving.value || !canEditContent.value) {
+        return false;
+    }
+
+    if (isEditableSchedule.value) {
+        if (!detailDialog.scheduledAt || new Date(detailDialog.scheduledAt).getTime() <= Date.now()) {
+            return false;
+        }
+    }
+
+    const hasContent = Boolean(detailDialog.content.trim());
     const hasEmbeds = parsedEditEmbeds.value.ok && parsedEditEmbeds.value.embeds.length > 0;
     const hasNewAttachments = hasAttachments.value;
-    if (!hasContent && !hasEmbeds && !hasNewAttachments) {
+    const hasExistingAttachments = detailDialog.existingAttachments.length > 0;
+    if (isEditableSchedule.value) {
+        if (!hasContent && !hasEmbeds && !hasNewAttachments && !hasExistingAttachments) {
+            return false;
+        }
+    } else if (!hasContent && !hasEmbeds && !hasNewAttachments) {
         return false;
     }
-    if (editDialog.embedJson.trim() && editDialog.embedJson.trim() !== '[]' && !parsedEditEmbeds.value.ok) {
+    if (detailDialog.embedJson.trim() && detailDialog.embedJson.trim() !== '[]' && !parsedEditEmbeds.value.ok) {
         return false;
     }
     return true;
@@ -107,7 +185,7 @@ const attachmentsChanged = computed(() => {
     if (hasAttachments.value) {
         return true;
     }
-    const currentKeys = new Set(editDialog.existingAttachments.map(attachmentKey));
+    const currentKeys = new Set(detailDialog.existingAttachments.map(attachmentKey));
     if (currentKeys.size !== initialExistingAttachmentKeys.value.size) {
         return true;
     }
@@ -118,6 +196,70 @@ const attachmentsChanged = computed(() => {
     }
     return false;
 });
+
+const scheduleMinDate = computed(() => {
+    const date = new Date();
+    date.setMinutes(date.getMinutes() + 1, 0, 0);
+    return date;
+});
+
+const busy = computed(() => saving.value || deleting.value || sendingNow.value);
+
+function buildScheduledRow(scheduled, posted) {
+    let deliveryStatus = 'pending';
+    if (scheduled.success === true) {
+        deliveryStatus = 'sent';
+    } else if (scheduled.success === false) {
+        deliveryStatus = 'failed';
+    }
+
+    return {
+        rowKey: `scheduled:${scheduled.id}`,
+        kind: 'scheduled',
+        originType: 'scheduled',
+        deliveryStatus,
+        channelId: scheduled.destination.channelId,
+        content: scheduled.payload.content,
+        embeds: scheduled.payload.embeds ?? [],
+        attachments: scheduled.payload.attachments ?? [],
+        postedByUserId: scheduled.createdByUserId,
+        scheduledAt: scheduled.scheduledAt,
+        sentAt: scheduled.sentAt,
+        createdAt: scheduled.createdAt,
+        updatedAt: scheduled.updatedAt,
+        sortAt: scheduled.scheduledAt || scheduled.createdAt,
+        messageId: posted?.messageId ?? scheduled.resultingMessageId ?? null,
+        guildId: posted?.guildId ?? null,
+        error: scheduled.error,
+        scheduled,
+        posted
+    };
+}
+
+function buildPostedRow(posted) {
+    const originType = posted.origin === 'scheduled' ? 'scheduled' : 'manual';
+    return {
+        rowKey: `posted:${posted.messageId}`,
+        kind: 'posted',
+        originType,
+        deliveryStatus: posted.isDeleted ? 'deleted' : 'active',
+        channelId: posted.channelId,
+        content: posted.content,
+        embeds: posted.embeds ?? [],
+        attachments: posted.attachments ?? [],
+        postedByUserId: posted.postedByUserId,
+        scheduledAt: null,
+        sentAt: posted.createdAt,
+        createdAt: posted.createdAt,
+        updatedAt: posted.updatedAt,
+        sortAt: posted.createdAt,
+        messageId: posted.messageId,
+        guildId: posted.guildId,
+        error: null,
+        scheduled: null,
+        posted
+    };
+}
 
 function formatDate(value) {
     if (!value) {
@@ -135,20 +277,52 @@ function posterLabel(userId) {
     return memberNameById.value.get(userId) ?? userId;
 }
 
-function sendModeLabel(mode) {
-    return mode === 'reply' ? t('manage.botPosted.modeReply') : t('manage.botPosted.modeSend');
+function originLabel(originType) {
+    return originType === 'scheduled'
+        ? t('manage.botPosted.originScheduled')
+        : t('manage.botPosted.originManual');
 }
 
-function messagePreview(message) {
-    const text = message.content?.trim();
+function deliveryLabel(status) {
+    switch (status) {
+        case 'pending':
+            return t('manage.botPosted.deliveryPending');
+        case 'sent':
+            return t('manage.botPosted.deliverySent');
+        case 'failed':
+            return t('manage.botPosted.deliveryFailed');
+        case 'deleted':
+            return t('manage.botPosted.statusDeleted');
+        default:
+            return t('manage.botPosted.statusActive');
+    }
+}
+
+function deliverySeverity(status) {
+    switch (status) {
+        case 'pending':
+            return 'warn';
+        case 'sent':
+        case 'active':
+            return 'success';
+        case 'failed':
+        case 'deleted':
+            return 'danger';
+        default:
+            return 'secondary';
+    }
+}
+
+function messagePreview(row) {
+    const text = row.content?.trim();
     if (text) {
         return text.length > 80 ? `${text.slice(0, 77)}...` : text;
     }
-    if (message.attachments?.length) {
-        return t('manage.botPosted.attachmentCount', { count: message.attachments.length });
+    if (row.attachments?.length) {
+        return t('manage.botPosted.attachmentCount', { count: row.attachments.length });
     }
-    if (message.embeds?.length) {
-        const title = message.embeds[0]?.title?.trim();
+    if (row.embeds?.length) {
+        const title = row.embeds[0]?.title?.trim();
         if (title) {
             return `[Embed] ${title}`;
         }
@@ -157,8 +331,11 @@ function messagePreview(message) {
     return '—';
 }
 
-function messageDiscordUrl(message) {
-    return `https://discord.com/channels/${message.guildId}/${message.channelId}/${message.messageId}`;
+function messageDiscordUrl(row) {
+    if (!row.guildId || !row.messageId) {
+        return null;
+    }
+    return `https://discord.com/channels/${row.guildId}/${row.channelId}/${row.messageId}`;
 }
 
 function embedsToJson(embeds) {
@@ -197,6 +374,9 @@ function onFileInputChange(event) {
         showAttachmentError(result);
         return;
     }
+    if (isEditableSchedule.value) {
+        detailDialog.existingAttachments = [];
+    }
     if (result.truncated) {
         toast.add({
             severity: 'warn',
@@ -228,7 +408,7 @@ function onEditPaste(event) {
 
 function removeExistingAttachment(attachment) {
     const key = attachmentKey(attachment);
-    editDialog.existingAttachments = editDialog.existingAttachments.filter(
+    detailDialog.existingAttachments = detailDialog.existingAttachments.filter(
         (entry) => attachmentKey(entry) !== key
     );
 }
@@ -236,17 +416,22 @@ function removeExistingAttachment(attachment) {
 function resetEditAttachments() {
     clearAttachments();
     initialExistingAttachmentKeys.value = new Set();
-    editDialog.existingAttachments = [];
+    detailDialog.existingAttachments = [];
 }
 
 function buildEditEmbedsPayload() {
-    if (editDialog.embedJson.trim() && editDialog.embedJson.trim() !== '[]') {
+    if (detailDialog.embedJson.trim() && detailDialog.embedJson.trim() !== '[]') {
         return parsedEditEmbeds.value.ok ? parsedEditEmbeds.value.payload : [];
     }
     return [];
 }
 
 function actionErrorMessage(error) {
+    const scheduledKey = `manage.botPosted.scheduleErrors.${error}`;
+    const scheduledTranslated = t(scheduledKey);
+    if (scheduledTranslated !== scheduledKey) {
+        return scheduledTranslated;
+    }
     const key = `manage.botPosted.errors.${error}`;
     const translated = t(key);
     return translated === key ? t('manage.botPosted.actionFailed') : translated;
@@ -255,8 +440,12 @@ function actionErrorMessage(error) {
 async function loadMessages() {
     loading.value = true;
     try {
-        const data = await apiFetch('/api/bot-messages');
-        messages.value = data.messages ?? [];
+        const [postedData, scheduledData] = await Promise.all([
+            apiFetch('/api/bot-messages'),
+            apiFetch('/api/scheduled-messages')
+        ]);
+        postedMessages.value = postedData.messages ?? [];
+        scheduledMessages.value = scheduledData.messages ?? [];
     } catch {
         toast.add({
             severity: 'error',
@@ -269,72 +458,54 @@ async function loadMessages() {
     }
 }
 
-function openEdit(message) {
-    if (message.isDeleted) {
-        return;
-    }
+function openDetail(row) {
     resetEditAttachments();
-    editDialog.message = message;
-    editDialog.content = message.content ?? '';
-    editDialog.embedJson = embedsToJson(message.embeds);
-    editDialog.reason = '';
-    editDialog.existingAttachments = [...(message.attachments ?? [])];
+    detailDialog.row = row;
+    detailDialog.content = row.content ?? '';
+    detailDialog.embedJson = embedsToJson(row.embeds);
+    detailDialog.reason = '';
+    detailDialog.scheduledAt = row.scheduledAt ? new Date(row.scheduledAt) : null;
+    detailDialog.existingAttachments = [...(row.attachments ?? [])];
     initialExistingAttachmentKeys.value = new Set(
-        editDialog.existingAttachments.map(attachmentKey)
+        detailDialog.existingAttachments.map(attachmentKey)
     );
-    editDialog.visible = true;
+    detailDialog.visible = true;
 }
 
-function openDelete(message) {
-    if (message.isDeleted) {
+/** When opening the picker on a past value (failed schedule), jump to now so time can be edited. */
+function onSchedulePickerShow() {
+    const current = detailDialog.scheduledAt;
+    if (!current || new Date(current).getTime() > Date.now()) {
         return;
     }
-    deleteDialog.message = message;
+    const initial = new Date();
+    initial.setMinutes(initial.getMinutes() + 1, 0, 0);
+    detailDialog.scheduledAt = initial;
+}
+
+function openDelete(row) {
+    if (row.kind === 'posted' && row.posted?.isDeleted) {
+        return;
+    }
+    if (row.kind === 'scheduled' && row.deliveryStatus === 'sent' && row.posted?.isDeleted) {
+        return;
+    }
+    deleteDialog.row = row;
     deleteDialog.reason = '';
     deleteDialog.visible = true;
 }
 
-async function saveEdit() {
-    if (!canSaveEdit.value || !editDialog.message) {
+async function saveDetail() {
+    if (!canSaveDetail.value || !detailDialog.row) {
         return;
     }
 
     saving.value = true;
     try {
-        const embedsPayload = buildEditEmbedsPayload();
-        let updated;
-
-        if (attachmentsChanged.value) {
-            const formData = new FormData();
-            formData.append('content', editDialog.content);
-            formData.append('embeds', JSON.stringify(embedsPayload));
-            formData.append('replaceAttachments', 'true');
-            if (editDialog.reason.trim()) {
-                formData.append('reason', editDialog.reason.trim());
-            }
-            for (const entry of newAttachments.value) {
-                formData.append('attachments', entry.file);
-            }
-
-            updated = await apiFetch(`/api/bot-messages/${editDialog.message.messageId}`, {
-                method: 'PATCH',
-                body: formData
-            });
-        } else {
-            updated = await apiFetch(`/api/bot-messages/${editDialog.message.messageId}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    content: editDialog.content,
-                    embeds: embedsPayload,
-                    reason: editDialog.reason.trim() || undefined
-                })
-            });
-        }
-
-        const index = messages.value.findIndex((entry) => entry.messageId === updated.messageId);
-        if (index !== -1) {
-            messages.value[index] = updated;
+        if (isEditableSchedule.value) {
+            await savePendingSchedule();
+        } else if (isEditablePosted.value) {
+            await savePostedMessage();
         }
 
         toast.add({
@@ -342,8 +513,9 @@ async function saveEdit() {
             summary: t('manage.botPosted.updateSuccess'),
             life: 4000
         });
-        editDialog.visible = false;
+        detailDialog.visible = false;
         resetEditAttachments();
+        await loadMessages();
     } catch (error) {
         toast.add({
             severity: 'error',
@@ -356,24 +528,143 @@ async function saveEdit() {
     }
 }
 
+async function savePendingSchedule() {
+    const id = detailDialog.row.scheduled.id;
+    const embedsPayload = buildEditEmbedsPayload();
+    const clearAttachmentsOnly =
+        attachmentsChanged.value && !hasAttachments.value && detailDialog.existingAttachments.length === 0;
+    const replaceAttachments = hasAttachments.value || clearAttachmentsOnly;
+
+    if (attachmentsChanged.value && !replaceAttachments) {
+        throw new Error('schedule_attachment_reupload_required');
+    }
+
+    if (replaceAttachments) {
+        const formData = new FormData();
+        formData.append('content', detailDialog.content);
+        formData.append('embeds', JSON.stringify(embedsPayload));
+        formData.append('scheduledAt', new Date(detailDialog.scheduledAt).toISOString());
+        formData.append('replaceAttachments', 'true');
+        for (const entry of newAttachments.value) {
+            formData.append('attachments', entry.file);
+        }
+        await apiFetch(`/api/scheduled-messages/${id}`, {
+            method: 'PATCH',
+            body: formData
+        });
+        return;
+    }
+
+    await apiFetch(`/api/scheduled-messages/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            content: detailDialog.content,
+            embeds: embedsPayload,
+            scheduledAt: new Date(detailDialog.scheduledAt).toISOString()
+        })
+    });
+}
+
+async function savePostedMessage() {
+    const messageId = detailDialog.row.posted.messageId;
+    const embedsPayload = buildEditEmbedsPayload();
+
+    if (attachmentsChanged.value) {
+        const formData = new FormData();
+        formData.append('content', detailDialog.content);
+        formData.append('embeds', JSON.stringify(embedsPayload));
+        formData.append('replaceAttachments', 'true');
+        if (detailDialog.reason.trim()) {
+            formData.append('reason', detailDialog.reason.trim());
+        }
+        for (const entry of newAttachments.value) {
+            formData.append('attachments', entry.file);
+        }
+
+        await apiFetch(`/api/bot-messages/${messageId}`, {
+            method: 'PATCH',
+            body: formData
+        });
+        return;
+    }
+
+    await apiFetch(`/api/bot-messages/${messageId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            content: detailDialog.content,
+            embeds: embedsPayload,
+            reason: detailDialog.reason.trim() || undefined
+        })
+    });
+}
+
+async function sendNow() {
+    if (!isEditableSchedule.value || !detailDialog.row?.scheduled) {
+        return;
+    }
+
+    sendingNow.value = true;
+    try {
+        await apiFetch(`/api/scheduled-messages/${detailDialog.row.scheduled.id}/send-now`, {
+            method: 'POST'
+        });
+        toast.add({
+            severity: 'success',
+            summary: t('manage.botPosted.sendNowSuccess'),
+            life: 4000
+        });
+        detailDialog.visible = false;
+        resetEditAttachments();
+        await loadMessages();
+    } catch (error) {
+        toast.add({
+            severity: 'error',
+            summary: t('toast.actionFailed'),
+            detail: actionErrorMessage(error.message),
+            life: 6000
+        });
+        await loadMessages();
+    } finally {
+        sendingNow.value = false;
+    }
+}
+
 async function confirmDelete() {
-    if (!deleteDialog.message) {
+    if (!deleteDialog.row) {
         return;
     }
 
     deleting.value = true;
     try {
-        const updated = await apiFetch(`/api/bot-messages/${deleteDialog.message.messageId}`, {
-            method: 'DELETE',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                reason: deleteDialog.reason.trim() || undefined
-            })
-        });
+        const row = deleteDialog.row;
 
-        const index = messages.value.findIndex((entry) => entry.messageId === updated.messageId);
-        if (index !== -1) {
-            messages.value[index] = updated;
+        if (row.kind === 'scheduled' && row.deliveryStatus === 'pending') {
+            await apiFetch(`/api/scheduled-messages/${row.scheduled.id}`, {
+                method: 'DELETE'
+            });
+        } else if (row.kind === 'scheduled' && row.deliveryStatus === 'failed') {
+            await apiFetch(`/api/scheduled-messages/${row.scheduled.id}`, {
+                method: 'DELETE'
+            });
+        } else if (row.posted && !row.posted.isDeleted) {
+            await apiFetch(`/api/bot-messages/${row.posted.messageId}`, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    reason: deleteDialog.reason.trim() || undefined
+                })
+            });
+            if (row.kind === 'scheduled' && row.scheduled) {
+                await apiFetch(`/api/scheduled-messages/${row.scheduled.id}`, {
+                    method: 'DELETE'
+                }).catch(() => undefined);
+            }
+        } else if (row.kind === 'scheduled' && row.scheduled) {
+            await apiFetch(`/api/scheduled-messages/${row.scheduled.id}`, {
+                method: 'DELETE'
+            });
         }
 
         toast.add({
@@ -382,6 +673,11 @@ async function confirmDelete() {
             life: 4000
         });
         deleteDialog.visible = false;
+        if (detailDialog.visible) {
+            detailDialog.visible = false;
+            resetEditAttachments();
+        }
+        await loadMessages();
     } catch (error) {
         toast.add({
             severity: 'error',
@@ -397,9 +693,16 @@ async function confirmDelete() {
 function clearFilter() {
     filters.value = {
         global: { value: null, matchMode: FilterMatchMode.CONTAINS },
-        sendMode: { value: null, matchMode: FilterMatchMode.EQUALS },
-        isDeleted: { value: null, matchMode: FilterMatchMode.EQUALS }
+        originType: { value: null, matchMode: FilterMatchMode.EQUALS },
+        deliveryStatus: { value: null, matchMode: FilterMatchMode.EQUALS }
     };
+}
+
+function canOpenDelete(row) {
+    if (row.kind === 'scheduled') {
+        return true;
+    }
+    return Boolean(row.posted && !row.posted.isDeleted);
 }
 
 onMounted(async () => {
@@ -427,16 +730,17 @@ onMounted(async () => {
 
             <DataTable
                 v-model:filters="filters"
-                :value="messages"
-                dataKey="messageId"
+                :value="tableRows"
+                dataKey="rowKey"
                 paginator
                 :rows="15"
                 :rowsPerPageOptions="[10, 15, 25, 50]"
                 :loading="loadingAll"
-                :globalFilterFields="['messageId', 'channelId', 'content', 'postedByUserId']"
+                :globalFilterFields="['messageId', 'channelId', 'content', 'postedByUserId', 'rowKey']"
                 :rowHover="true"
                 showGridlines
                 responsiveLayout="scroll"
+                @row-click="(event) => openDetail(event.data)"
             >
                 <template #header>
                     <div class="flex flex-wrap justify-between gap-3">
@@ -463,33 +767,17 @@ onMounted(async () => {
                 <template #empty>{{ t('manage.botPosted.empty') }}</template>
                 <template #loading>{{ t('manage.botPosted.loading') }}</template>
 
-                <Column field="messageId" :header="t('manage.messages.messageId')" style="min-width: 12rem">
+                <Column field="originType" filter :header="t('manage.botPosted.origin')" style="min-width: 8rem">
                     <template #body="{ data }">
-                        <a
-                            :href="messageDiscordUrl(data)"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            class="font-mono text-sm message-link"
-                        >
-                            {{ data.messageId }}
-                        </a>
-                    </template>
-                </Column>
-
-                <Column :header="t('manage.messages.channel')" style="min-width: 10rem">
-                    <template #body="{ data }">
-                        {{ formatChannelName(data.channelId) }}
-                    </template>
-                </Column>
-
-                <Column field="sendMode" :header="t('manage.botPosted.sendMode')" style="min-width: 8rem">
-                    <template #body="{ data }">
-                        <Tag :value="sendModeLabel(data.sendMode)" severity="secondary" />
+                        <Tag
+                            :value="originLabel(data.originType)"
+                            :severity="data.originType === 'scheduled' ? 'info' : 'secondary'"
+                        />
                     </template>
                     <template #filter="{ filterModel, filterCallback }">
                         <Select
                             v-model="filterModel.value"
-                            :options="sendModeOptions"
+                            :options="originOptions"
                             optionLabel="label"
                             optionValue="value"
                             :placeholder="t('common.any')"
@@ -497,6 +785,55 @@ onMounted(async () => {
                             class="w-full"
                             @change="filterCallback()"
                         />
+                    </template>
+                </Column>
+
+                <Column field="deliveryStatus" filter :header="t('manage.botPosted.status')" style="min-width: 8rem">
+                    <template #body="{ data }">
+                        <Tag
+                            :value="deliveryLabel(data.deliveryStatus)"
+                            :severity="deliverySeverity(data.deliveryStatus)"
+                        />
+                    </template>
+                    <template #filter="{ filterModel, filterCallback }">
+                        <Select
+                            v-model="filterModel.value"
+                            :options="deliveryStatusOptions"
+                            optionLabel="label"
+                            optionValue="value"
+                            :placeholder="t('common.any')"
+                            showClear
+                            class="w-full"
+                            @change="filterCallback()"
+                        />
+                    </template>
+                </Column>
+
+                <Column field="scheduledAt" :header="t('manage.botPosted.scheduledAt')" style="min-width: 11rem">
+                    <template #body="{ data }">
+                        {{ formatDate(data.scheduledAt) }}
+                    </template>
+                </Column>
+
+                <Column field="messageId" :header="t('manage.messages.messageId')" style="min-width: 12rem">
+                    <template #body="{ data }">
+                        <a
+                            v-if="messageDiscordUrl(data)"
+                            :href="messageDiscordUrl(data)"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="font-mono text-sm message-link"
+                            @click.stop
+                        >
+                            {{ data.messageId }}
+                        </a>
+                        <span v-else class="text-muted-color">—</span>
+                    </template>
+                </Column>
+
+                <Column :header="t('manage.messages.channel')" style="min-width: 10rem">
+                    <template #body="{ data }">
+                        {{ formatChannelName(data.channelId) }}
                     </template>
                 </Column>
 
@@ -514,54 +851,27 @@ onMounted(async () => {
 
                 <Column field="createdAt" :header="t('manage.botPosted.postedAt')" style="min-width: 11rem">
                     <template #body="{ data }">
-                        {{ formatDate(data.createdAt) }}
-                    </template>
-                </Column>
-
-                <Column field="updatedAt" :header="t('manage.botPosted.updatedAt')" style="min-width: 11rem">
-                    <template #body="{ data }">
-                        {{ formatDate(data.updatedAt) }}
-                    </template>
-                </Column>
-
-                <Column field="isDeleted" :header="t('manage.botPosted.status')" style="min-width: 8rem">
-                    <template #body="{ data }">
-                        <Tag
-                            :value="data.isDeleted ? t('manage.botPosted.statusDeleted') : t('manage.botPosted.statusActive')"
-                            :severity="data.isDeleted ? 'danger' : 'success'"
-                        />
-                    </template>
-                    <template #filter="{ filterModel, filterCallback }">
-                        <Select
-                            v-model="filterModel.value"
-                            :options="statusOptions"
-                            optionLabel="label"
-                            optionValue="value"
-                            :placeholder="t('common.any')"
-                            showClear
-                            class="w-full"
-                            @change="filterCallback()"
-                        />
+                        {{ formatDate(data.sentAt || data.createdAt) }}
                     </template>
                 </Column>
 
                 <Column :header="t('manage.botPosted.actions')" style="min-width: 9rem">
                     <template #body="{ data }">
-                        <div class="flex flex-wrap gap-2">
+                        <div class="flex flex-wrap gap-2" @click.stop>
                             <Button
                                 icon="pi pi-pencil"
                                 severity="secondary"
                                 text
                                 rounded
-                                :disabled="data.isDeleted || saving || deleting"
-                                @click="openEdit(data)"
+                                :disabled="busy"
+                                @click="openDetail(data)"
                             />
                             <Button
                                 icon="pi pi-trash"
                                 severity="danger"
                                 text
                                 rounded
-                                :disabled="data.isDeleted || saving || deleting"
+                                :disabled="busy || !canOpenDelete(data)"
                                 @click="openDelete(data)"
                             />
                         </div>
@@ -572,14 +882,51 @@ onMounted(async () => {
     </Fluid>
 
     <Dialog
-        v-model:visible="editDialog.visible"
+        v-model:visible="detailDialog.visible"
         modal
-        :header="t('manage.botPosted.editDialogTitle')"
+        :header="
+            isEditableSchedule
+                ? t('manage.botPosted.scheduleDialogTitle')
+                : t('manage.botPosted.editDialogTitle')
+        "
         :style="{ width: 'min(72rem, 96vw)' }"
-        :closable="!saving"
+        :closable="!busy"
     >
         <div class="grid grid-cols-12 gap-6" @paste="onEditPaste">
             <div class="col-span-12 xl:col-span-6 flex flex-col gap-4">
+                <div v-if="detailDialog.row" class="flex flex-wrap gap-2">
+                    <Tag
+                        :value="originLabel(detailDialog.row.originType)"
+                        :severity="detailDialog.row.originType === 'scheduled' ? 'info' : 'secondary'"
+                    />
+                    <Tag
+                        :value="deliveryLabel(detailDialog.row.deliveryStatus)"
+                        :severity="deliverySeverity(detailDialog.row.deliveryStatus)"
+                    />
+                    <span v-if="detailDialog.row.error" class="text-red-400 text-sm">
+                        {{ actionErrorMessage(detailDialog.row.error) }}
+                    </span>
+                </div>
+
+                <div v-if="detailDialog.row?.kind === 'scheduled'" class="flex flex-col gap-2">
+                    <label for="detail-scheduled-at">{{ t('manage.botPosted.scheduledAt') }}</label>
+                    <DatePicker
+                        id="detail-scheduled-at"
+                        v-model="detailDialog.scheduledAt"
+                        showTime
+                        hourFormat="24"
+                        showIcon
+                        iconDisplay="input"
+                        :minDate="scheduleMinDate"
+                        class="w-full"
+                        :disabled="busy || !isEditableSchedule"
+                        @show="onSchedulePickerShow"
+                    />
+                    <small v-if="detailDialog.row.deliveryStatus === 'failed'" class="text-muted-color">
+                        {{ t('manage.botPosted.retryScheduleHint') }}
+                    </small>
+                </div>
+
                 <div class="flex flex-col gap-2">
                     <div class="flex flex-wrap items-center justify-between gap-2">
                         <label>{{ t('manage.send.attachments') }}</label>
@@ -592,7 +939,7 @@ onMounted(async () => {
                         type="file"
                         class="hidden"
                         multiple
-                        :disabled="saving || attachmentCount >= maxAttachments"
+                        :disabled="busy || !canEditContent || attachmentCount >= maxAttachments"
                         @change="onFileInputChange"
                     />
                     <div class="flex flex-wrap gap-2">
@@ -601,14 +948,20 @@ onMounted(async () => {
                             icon="pi pi-paperclip"
                             severity="secondary"
                             outlined
-                            :disabled="saving || attachmentCount >= maxAttachments"
+                            :disabled="busy || !canEditContent || attachmentCount >= maxAttachments"
                             @click="openFilePicker"
                         />
                     </div>
-                    <small class="text-muted-color">{{ t('manage.botPosted.editAttachmentHint') }}</small>
-                    <div v-if="editDialog.existingAttachments.length" class="attachment-list">
+                    <small class="text-muted-color">
+                        {{
+                            isEditableSchedule
+                                ? t('manage.botPosted.scheduleAttachmentHint')
+                                : t('manage.botPosted.editAttachmentHint')
+                        }}
+                    </small>
+                    <div v-if="detailDialog.existingAttachments.length" class="attachment-list">
                         <div
-                            v-for="attachment in editDialog.existingAttachments"
+                            v-for="attachment in detailDialog.existingAttachments"
                             :key="attachmentKey(attachment)"
                             class="attachment-item"
                         >
@@ -624,7 +977,7 @@ onMounted(async () => {
                                 severity="danger"
                                 text
                                 rounded
-                                :disabled="saving"
+                                :disabled="busy || !canEditContent"
                                 @click="removeExistingAttachment(attachment)"
                             />
                         </div>
@@ -649,7 +1002,7 @@ onMounted(async () => {
                                 severity="danger"
                                 text
                                 rounded
-                                :disabled="saving"
+                                :disabled="busy"
                                 @click="removeAttachment(entry.id)"
                             />
                         </div>
@@ -660,10 +1013,10 @@ onMounted(async () => {
                     <label for="edit-content">{{ t('manage.send.textContent') }}</label>
                     <Textarea
                         id="edit-content"
-                        v-model="editDialog.content"
+                        v-model="detailDialog.content"
                         rows="10"
                         class="w-full font-mono"
-                        :disabled="saving"
+                        :disabled="busy || !canEditContent"
                     />
                 </div>
 
@@ -671,22 +1024,22 @@ onMounted(async () => {
                     <label for="edit-embed-json">{{ t('manage.send.embedJson') }}</label>
                     <Textarea
                         id="edit-embed-json"
-                        v-model="editDialog.embedJson"
+                        v-model="detailDialog.embedJson"
                         rows="12"
                         class="w-full font-mono text-sm"
-                        :disabled="saving"
+                        :disabled="busy || !canEditContent"
                     />
                     <small class="text-muted-color">{{ t('manage.send.embedJsonHint') }}</small>
                 </div>
 
-                <div class="flex flex-col gap-2">
+                <div v-if="isEditablePosted && !isEditableSchedule" class="flex flex-col gap-2">
                     <label for="edit-reason">{{ t('manage.send.reasonOptional') }}</label>
                     <InputText
                         id="edit-reason"
-                        v-model="editDialog.reason"
+                        v-model="detailDialog.reason"
                         :placeholder="t('manage.messages.reasonAuditPlaceholder')"
                         class="w-full"
-                        :disabled="saving"
+                        :disabled="busy"
                     />
                 </div>
             </div>
@@ -698,18 +1051,18 @@ onMounted(async () => {
                         {{ editPreviewError }}
                     </Message>
                     <div
-                        v-else-if="!editDialog.content.trim() && (!editDialog.embedJson.trim() || editDialog.embedJson.trim() === '[]') && !newAttachments.length && !editDialog.existingAttachments.length"
+                        v-else-if="!detailDialog.content.trim() && (!detailDialog.embedJson.trim() || detailDialog.embedJson.trim() === '[]') && !newAttachments.length && !detailDialog.existingAttachments.length"
                         class="preview-empty"
                     >
                         {{ t('manage.botPosted.previewEmpty') }}
                     </div>
                     <template v-else>
-                        <DiscordEmbedPreview :content="editDialog.content" :embeds="editPreviewEmbeds" />
-                        <div v-if="newAttachments.length || editDialog.existingAttachments.length" class="preview-attachments">
+                        <DiscordEmbedPreview :content="detailDialog.content" :embeds="editPreviewEmbeds" />
+                        <div v-if="newAttachments.length || detailDialog.existingAttachments.length" class="preview-attachments">
                             <div class="font-medium text-sm mb-2">{{ t('manage.send.attachments') }}</div>
                             <div class="attachment-preview-grid">
                                 <div
-                                    v-for="attachment in editDialog.existingAttachments"
+                                    v-for="attachment in detailDialog.existingAttachments"
                                     :key="`existing-${attachmentKey(attachment)}`"
                                     class="attachment-preview-item"
                                 >
@@ -738,20 +1091,46 @@ onMounted(async () => {
         </div>
 
         <template #footer>
-            <Button
-                :label="t('manage.botPosted.cancel')"
-                severity="secondary"
-                outlined
-                :disabled="saving"
-                @click="editDialog.visible = false"
-            />
-            <Button
-                :label="t('manage.botPosted.save')"
-                icon="pi pi-check"
-                :loading="saving"
-                :disabled="!canSaveEdit"
-                @click="saveEdit"
-            />
+            <div class="flex flex-wrap justify-between gap-3 w-full">
+                <div class="flex flex-wrap gap-2">
+                    <Button
+                        v-if="isEditableSchedule"
+                        :label="t('manage.botPosted.sendNow')"
+                        icon="pi pi-send"
+                        severity="help"
+                        outlined
+                        :loading="sendingNow"
+                        :disabled="busy"
+                        @click="sendNow"
+                    />
+                    <Button
+                        v-if="detailDialog.row && canOpenDelete(detailDialog.row)"
+                        :label="t('manage.botPosted.delete')"
+                        icon="pi pi-trash"
+                        severity="danger"
+                        text
+                        :disabled="busy"
+                        @click="openDelete(detailDialog.row)"
+                    />
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    <Button
+                        :label="t('manage.botPosted.cancel')"
+                        severity="secondary"
+                        outlined
+                        :disabled="busy"
+                        @click="detailDialog.visible = false"
+                    />
+                    <Button
+                        v-if="canEditContent"
+                        :label="t('manage.botPosted.save')"
+                        icon="pi pi-check"
+                        :loading="saving"
+                        :disabled="!canSaveDetail"
+                        @click="saveDetail"
+                    />
+                </div>
+            </div>
         </template>
     </Dialog>
 
@@ -764,10 +1143,17 @@ onMounted(async () => {
     >
         <div class="flex flex-col gap-4">
             <Message severity="warn" :closable="false">
-                {{ t('manage.botPosted.deleteDialogWarning') }}
+                {{
+                    deleteDialog.row?.kind === 'scheduled' && deleteDialog.row.deliveryStatus !== 'sent'
+                        ? t('manage.botPosted.deleteScheduleWarning')
+                        : t('manage.botPosted.deleteDialogWarning')
+                }}
             </Message>
 
-            <div class="flex flex-col gap-2">
+            <div
+                v-if="deleteDialog.row?.posted && !deleteDialog.row.posted.isDeleted"
+                class="flex flex-col gap-2"
+            >
                 <label for="delete-reason">{{ t('manage.send.reasonOptional') }}</label>
                 <Textarea
                     id="delete-reason"
