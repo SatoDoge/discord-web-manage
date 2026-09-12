@@ -45,7 +45,7 @@ scheduledMessage.get('/:id', async (c) => {
   return c.json(result.data);
 });
 
-/** Update a pending scheduled message. */
+/** Update a pending or failed scheduled message (failed ones reopen as pending). */
 scheduledMessage.patch('/:id', async (c) => {
   const parsed = await readScheduledMessageBody(c);
   if (!parsed.ok) {
@@ -72,7 +72,7 @@ scheduledMessage.delete('/:id', async (c) => {
   return c.json(result.data);
 });
 
-/** Force-send a pending scheduled message immediately. */
+/** Force-send a pending or failed scheduled message immediately. */
 scheduledMessage.post('/:id/send-now', async (c) => {
   const result = await sendScheduledMessageNow(c.req.param('id'));
   if (!result.ok) {

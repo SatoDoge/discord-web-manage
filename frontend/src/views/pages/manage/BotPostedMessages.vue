@@ -133,8 +133,11 @@ const editPreviewError = computed(() => {
     return null;
 });
 
-const isPendingSchedule = computed(
-    () => detailDialog.row?.kind === 'scheduled' && detailDialog.row.deliveryStatus === 'pending'
+/** Pending or failed schedules can be edited, rescheduled, or force-sent. */
+const isEditableSchedule = computed(
+    () =>
+        detailDialog.row?.kind === 'scheduled' &&
+        (detailDialog.row.deliveryStatus === 'pending' || detailDialog.row.deliveryStatus === 'failed')
 );
 
 const isEditablePosted = computed(() => {
@@ -148,14 +151,14 @@ const isEditablePosted = computed(() => {
     return false;
 });
 
-const canEditContent = computed(() => isPendingSchedule.value || isEditablePosted.value);
+const canEditContent = computed(() => isEditableSchedule.value || isEditablePosted.value);
 
 const canSaveDetail = computed(() => {
     if (!detailDialog.row || saving.value || !canEditContent.value) {
         return false;
     }
 
-    if (isPendingSchedule.value) {
+    if (isEditableSchedule.value) {
         if (!detailDialog.scheduledAt || new Date(detailDialog.scheduledAt).getTime() <= Date.now()) {
             return false;
         }
@@ -165,7 +168,7 @@ const canSaveDetail = computed(() => {
     const hasEmbeds = parsedEditEmbeds.value.ok && parsedEditEmbeds.value.embeds.length > 0;
     const hasNewAttachments = hasAttachments.value;
     const hasExistingAttachments = detailDialog.existingAttachments.length > 0;
-    if (isPendingSchedule.value) {
+    if (isEditableSchedule.value) {
         if (!hasContent && !hasEmbeds && !hasNewAttachments && !hasExistingAttachments) {
             return false;
         }
@@ -371,7 +374,7 @@ function onFileInputChange(event) {
         showAttachmentError(result);
         return;
     }
-    if (isPendingSchedule.value) {
+    if (isEditableSchedule.value) {
         detailDialog.existingAttachments = [];
     }
     if (result.truncated) {
@@ -469,6 +472,17 @@ function openDetail(row) {
     detailDialog.visible = true;
 }
 
+/** When opening the picker on a past value (failed schedule), jump to now so time can be edited. */
+function onSchedulePickerShow() {
+    const current = detailDialog.scheduledAt;
+    if (!current || new Date(current).getTime() > Date.now()) {
+        return;
+    }
+    const initial = new Date();
+    initial.setMinutes(initial.getMinutes() + 1, 0, 0);
+    detailDialog.scheduledAt = initial;
+}
+
 function openDelete(row) {
     if (row.kind === 'posted' && row.posted?.isDeleted) {
         return;
@@ -488,7 +502,7 @@ async function saveDetail() {
 
     saving.value = true;
     try {
-        if (isPendingSchedule.value) {
+        if (isEditableSchedule.value) {
             await savePendingSchedule();
         } else if (isEditablePosted.value) {
             await savePostedMessage();
@@ -587,7 +601,7 @@ async function savePostedMessage() {
 }
 
 async function sendNow() {
-    if (!isPendingSchedule.value || !detailDialog.row?.scheduled) {
+    if (!isEditableSchedule.value || !detailDialog.row?.scheduled) {
         return;
     }
 
@@ -871,7 +885,7 @@ onMounted(async () => {
         v-model:visible="detailDialog.visible"
         modal
         :header="
-            isPendingSchedule
+            isEditableSchedule
                 ? t('manage.botPosted.scheduleDialogTitle')
                 : t('manage.botPosted.editDialogTitle')
         "
@@ -905,8 +919,12 @@ onMounted(async () => {
                         iconDisplay="input"
                         :minDate="scheduleMinDate"
                         class="w-full"
-                        :disabled="busy || !isPendingSchedule"
+                        :disabled="busy || !isEditableSchedule"
+                        @show="onSchedulePickerShow"
                     />
+                    <small v-if="detailDialog.row.deliveryStatus === 'failed'" class="text-muted-color">
+                        {{ t('manage.botPosted.retryScheduleHint') }}
+                    </small>
                 </div>
 
                 <div class="flex flex-col gap-2">
@@ -936,7 +954,7 @@ onMounted(async () => {
                     </div>
                     <small class="text-muted-color">
                         {{
-                            isPendingSchedule
+                            isEditableSchedule
                                 ? t('manage.botPosted.scheduleAttachmentHint')
                                 : t('manage.botPosted.editAttachmentHint')
                         }}
@@ -1014,7 +1032,7 @@ onMounted(async () => {
                     <small class="text-muted-color">{{ t('manage.send.embedJsonHint') }}</small>
                 </div>
 
-                <div v-if="isEditablePosted && !isPendingSchedule" class="flex flex-col gap-2">
+                <div v-if="isEditablePosted && !isEditableSchedule" class="flex flex-col gap-2">
                     <label for="edit-reason">{{ t('manage.send.reasonOptional') }}</label>
                     <InputText
                         id="edit-reason"
@@ -1076,7 +1094,7 @@ onMounted(async () => {
             <div class="flex flex-wrap justify-between gap-3 w-full">
                 <div class="flex flex-wrap gap-2">
                     <Button
-                        v-if="isPendingSchedule"
+                        v-if="isEditableSchedule"
                         :label="t('manage.botPosted.sendNow')"
                         icon="pi pi-send"
                         severity="help"

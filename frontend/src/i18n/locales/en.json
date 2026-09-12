@@ -354,6 +354,7 @@
       "attachmentCount": "{count} file(s)",
       "editDialogTitle": "Edit message",
       "scheduleDialogTitle": "Edit scheduled message",
+      "retryScheduleHint": "This schedule failed. Pick a future time to reschedule, or use Send now to post immediately.",
       "deleteDialogTitle": "Delete message",
       "deleteDialogWarning": "This deletes the message on Discord and marks the local record as deleted.",
       "deleteScheduleWarning": "This removes the scheduled post. If it has not been sent yet, it will not be posted.",

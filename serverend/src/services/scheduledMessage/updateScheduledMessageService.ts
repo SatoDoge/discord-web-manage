@@ -32,7 +32,8 @@ export type UpdateScheduledMessageResult =
     };
 
 /**
- * Edit a pending scheduled message. Reschedules the job when scheduledAt changes.
+ * Edit a pending or failed scheduled message.
+ * Failed schedules are reopened as pending and rescheduled when saved with a future time.
  */
 export async function updatePendingScheduledMessage(
   id: string,
@@ -52,9 +53,11 @@ export async function updatePendingScheduledMessage(
   if (!existing) {
     return { ok: false, status: 404, error: 'not_found' };
   }
-  if (existing.success !== null) {
+  if (existing.success === true) {
     return { ok: false, status: 409, error: 'already_processed' };
   }
+
+  const reopenFailure = existing.success === false;
 
   let scheduledAt: string | undefined;
   if (body.scheduledAt !== undefined) {
@@ -62,10 +65,12 @@ export async function updatePendingScheduledMessage(
     if (!parsed) {
       return { ok: false, status: 400, error: 'invalid_scheduled_at' };
     }
-    if (new Date(parsed).getTime() <= Date.now()) {
-      return { ok: false, status: 400, error: 'scheduled_at_in_past' };
-    }
     scheduledAt = parsed;
+  }
+
+  const nextScheduledAt = scheduledAt ?? existing.scheduledAt;
+  if (new Date(nextScheduledAt).getTime() <= Date.now()) {
+    return { ok: false, status: 400, error: 'scheduled_at_in_past' };
   }
 
   let channelId: string | undefined;
@@ -122,7 +127,7 @@ export async function updatePendingScheduledMessage(
   }
 
   const updated = await updateScheduledMessage(id, {
-    scheduledAt,
+    scheduledAt: nextScheduledAt,
     channelId,
     content,
     embeds,
@@ -131,6 +136,7 @@ export async function updatePendingScheduledMessage(
     attachmentFiles: replaceAttachments
       ? toAttachmentFiles(body.attachments ?? [])
       : undefined,
+    reopenFailure,
   });
 
   cancelScheduledMessageJob(id);

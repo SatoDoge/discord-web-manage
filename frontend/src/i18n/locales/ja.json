@@ -354,6 +354,7 @@
       "attachmentCount": "{count} file(s)",
       "editDialogTitle": "メッセージを編集",
       "scheduleDialogTitle": "予約投稿を編集",
+      "retryScheduleHint": "失敗した予約です。未来の日時を指定して再スケジュールするか、「今すぐ送信」で強制送信できます。",
       "deleteDialogTitle": "メッセージを削除",
       "deleteDialogWarning": "Discord上のメッセージを削除し、ローカル記録を削除済みにします。",
       "deleteScheduleWarning": "この予約投稿を削除します。まだ送信されていない場合、予定されていた投稿は行われません。",

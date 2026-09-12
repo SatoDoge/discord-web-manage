@@ -69,4 +69,9 @@ export type UpdateScheduledMessageInput = {
   channelId?: string;
   /** When set, replaces stored attachment files entirely. */
   attachmentFiles?: ScheduledAttachmentFile[];
+  /**
+   * Clear prior attempt fields (`success` / `sentAt` / `error` / `resultingMessageId`)
+   * so a failed schedule can be retried or rescheduled as pending.
+   */
+  reopenFailure?: boolean;
 };

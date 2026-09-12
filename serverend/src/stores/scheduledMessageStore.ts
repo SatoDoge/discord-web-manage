@@ -156,7 +156,7 @@ export function addScheduledMessage(
   });
 }
 
-/** Update fields on a pending scheduled message. */
+/** Update fields on a pending (or reopened failed) scheduled message. */
 export function updateScheduledMessage(
   id: string,
   patch: UpdateScheduledMessageInput,
@@ -176,9 +176,15 @@ export function updateScheduledMessage(
       }
     }
 
+    const reopenFailure = patch.reopenFailure === true;
+
     const next: ScheduledMessage = {
       ...current,
       scheduledAt: patch.scheduledAt ?? current.scheduledAt,
+      sentAt: reopenFailure ? null : current.sentAt,
+      success: reopenFailure ? null : current.success,
+      error: reopenFailure ? null : current.error,
+      resultingMessageId: reopenFailure ? null : current.resultingMessageId,
       destination: {
         channelId: patch.channelId ?? current.destination.channelId,
       },
@@ -190,6 +196,35 @@ export function updateScheduledMessage(
         reason: patch.reason !== undefined ? patch.reason : current.payload.reason,
         attachments,
       },
+      updatedAt: new Date().toISOString(),
+    };
+
+    const updated = [...list];
+    updated[index] = next;
+    await writeToDisk(updated);
+    return next;
+  });
+}
+
+/**
+ * Reset a failed scheduled message back to pending so it can be force-sent.
+ * Throws if the message is not in a failed state.
+ */
+export function reopenFailedScheduledMessage(id: string): Promise<ScheduledMessage> {
+  return enqueue(async () => {
+    const list = await readFromDisk();
+    const index = findIndexOrThrow(list, id);
+    const current = list[index];
+    if (current.success !== false) {
+      throw new Error(`Scheduled message is not failed: ${id}`);
+    }
+
+    const next: ScheduledMessage = {
+      ...current,
+      sentAt: null,
+      success: null,
+      error: null,
+      resultingMessageId: null,
       updatedAt: new Date().toISOString(),
     };
 
